@@ -1,10 +1,18 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Card, CardHeader } from '@/components/ui/Card'
+import { useMemo, useState } from 'react'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useSystemConfigStore } from '@/store/useSystemConfigStore'
+import {
+  normalizeEmailList,
+  resolveSafetyStockRecipientEmails,
+} from '@/lib/safety-stock-alerts'
+import { toast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
-import { Save, Building2, Globe, Clock, MessageSquare, Bell, Link2 } from 'lucide-react'
+import type { SafetyStockAlertConfig, User } from '@/types'
+import { Save, Building2, Bell, Link2, AlertTriangle, FlaskConical } from 'lucide-react'
 
 interface SettingField {
   id: string
@@ -63,14 +71,56 @@ const settingGroups: SettingGroup[] = [
   },
 ]
 
+function ToggleSwitch({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+        checked ? 'bg-primary-600' : 'bg-neutral-300',
+      )}
+    >
+      <span
+        className={cn(
+          'inline-block h-4 w-4 rounded-full bg-white transition-transform',
+          checked ? 'translate-x-6' : 'translate-x-1',
+        )}
+      />
+    </button>
+  )
+}
+
+function resolveRecipientPreview(config: SafetyStockAlertConfig, users: User[]) {
+  const validExtraEmails = normalizeEmailList(config.recipients.extraEmails)
+  const mergedConfig: SafetyStockAlertConfig = {
+    ...config,
+    recipients: {
+      ...config.recipients,
+      extraEmails: validExtraEmails,
+    },
+  }
+  return resolveSafetyStockRecipientEmails(mergedConfig, users)
+}
+
 export default function SystemConfig() {
-  const { t } = useTranslation()
-  const { language } = useAuthStore()
+  const { language, availableUsers } = useAuthStore()
+  const { safetyStockAlert, setSafetyStockAlert } = useSystemConfigStore()
+
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     settingGroups.forEach(g => g.fields.forEach(f => { initial[f.id] = f.value }))
     return initial
   })
+
+  const [draft, setDraft] = useState<SafetyStockAlertConfig>(safetyStockAlert)
+
+  const roleOptions = useMemo(() => Array.from(new Set(availableUsers.map(u => u.role))), [availableUsers])
+  const departmentOptions = useMemo(() => Array.from(new Set(availableUsers.map(u => u.department))), [availableUsers])
+
+  const recipientEmails = useMemo(
+    () => resolveRecipientPreview(draft, availableUsers),
+    [draft, availableUsers],
+  )
 
   const updateValue = (id: string, val: string) => {
     setValues(prev => ({ ...prev, [id]: val }))
@@ -83,13 +133,77 @@ export default function SystemConfig() {
     }))
   }
 
+  const updateDraft = <K extends keyof SafetyStockAlertConfig>(key: K, val: SafetyStockAlertConfig[K]) => {
+    setDraft(prev => ({ ...prev, [key]: val }))
+  }
+
+  const toggleArrayValue = (
+    group: 'roles' | 'departments' | 'userIds',
+    value: string,
+  ) => {
+    setDraft(prev => {
+      const current = prev.recipients[group]
+      const next = current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+
+      return {
+        ...prev,
+        recipients: {
+          ...prev.recipients,
+          [group]: next,
+        },
+      }
+    })
+  }
+
+  const saveSettings = () => {
+    if (draft.enabled && !draft.notifyOnLow && !draft.notifyOnCritical) {
+      toast('warning', language === 'zh-CN' ? '请至少开启一个预警级别' : 'Please enable at least one alert level')
+      return
+    }
+
+    if (draft.enabled && recipientEmails.length === 0) {
+      toast('warning', language === 'zh-CN' ? '请至少配置一位邮件接收人' : 'Please configure at least one email recipient')
+      return
+    }
+
+    const normalizedExtraEmails = normalizeEmailList(draft.recipients.extraEmails)
+    setSafetyStockAlert({
+      ...draft,
+      recipients: {
+        ...draft.recipients,
+        extraEmails: normalizedExtraEmails,
+      },
+    })
+
+    toast('success', language === 'zh-CN' ? '系统配置已保存' : 'System configuration saved')
+  }
+
+  const sendTestEmail = () => {
+    if (recipientEmails.length === 0) {
+      toast('warning', language === 'zh-CN' ? '没有可发送的有效邮箱地址' : 'No valid recipient email found')
+      return
+    }
+
+    const previewRecipients = recipientEmails.slice(0, 3).join(', ')
+    const hiddenCount = Math.max(0, recipientEmails.length - 3)
+
+    toast(
+      'info',
+      language === 'zh-CN'
+        ? `测试邮件已发送 (${recipientEmails.length}人): ${previewRecipients}${hiddenCount > 0 ? ` 等${hiddenCount}人` : ''}`
+        : `Test email sent (${recipientEmails.length} recipients): ${previewRecipients}${hiddenCount > 0 ? ` +${hiddenCount} more` : ''}`,
+    )
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-neutral-900">
           {language === 'zh-CN' ? '系统配置' : 'System Configuration'}
         </h1>
-        <Button size="sm">
+        <Button size="sm" onClick={saveSettings}>
           <Save className="h-4 w-4" />
           {language === 'zh-CN' ? '保存设置' : 'Save Settings'}
         </Button>
@@ -138,26 +252,239 @@ export default function SystemConfig() {
                   )}
 
                   {field.type === 'toggle' && (
-                    <button
-                      onClick={() => toggleValue(field.id)}
-                      className={cn(
-                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                        values[field.id] === 'enabled' ? 'bg-primary-600' : 'bg-neutral-300',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'inline-block h-4 w-4 rounded-full bg-white transition-transform',
-                          values[field.id] === 'enabled' ? 'translate-x-6' : 'translate-x-1',
-                        )}
-                      />
-                    </button>
+                    <ToggleSwitch
+                      checked={values[field.id] === 'enabled'}
+                      onToggle={() => toggleValue(field.id)}
+                    />
                   )}
                 </div>
               ))}
             </div>
           </Card>
         ))}
+
+        <Card className="lg:col-span-2 xl:col-span-3">
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-warning-600" />
+                <h3 className="text-base font-semibold text-neutral-900">
+                  {language === 'zh-CN' ? '安全库存预警邮件' : 'Safety Stock Alert Emails'}
+                </h3>
+              </div>
+              <p className="text-sm text-neutral-500 mt-1">
+                {language === 'zh-CN'
+                  ? '按级别、规则、角色和人员灵活配置邮件通知'
+                  : 'Configure alert levels, routing rules, and recipient targeting for emails'}
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={draft.enabled}
+              onToggle={() => updateDraft('enabled', !draft.enabled)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-neutral-700">
+                {language === 'zh-CN' ? '触发级别' : 'Trigger Levels'}
+              </p>
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={draft.notifyOnLow}
+                  onChange={(e) => updateDraft('notifyOnLow', e.target.checked)}
+                  className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                />
+                {language === 'zh-CN' ? '偏低 (Low)' : 'Low'}
+              </label>
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={draft.notifyOnCritical}
+                  onChange={(e) => updateDraft('notifyOnCritical', e.target.checked)}
+                  className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                />
+                {language === 'zh-CN' ? '告急 (Critical)' : 'Critical'}
+              </label>
+            </div>
+
+            <div>
+              <Input
+                type="number"
+                min={0}
+                max={95}
+                value={draft.criticalThresholdPctBelowSafety}
+                onChange={(e) => updateDraft('criticalThresholdPctBelowSafety', Number(e.target.value || 0))}
+                label={language === 'zh-CN' ? '告急阈值 (% 低于安全库存)' : 'Critical Threshold (% below safety stock)'}
+              />
+            </div>
+
+            <div>
+              <Input
+                type="number"
+                min={1}
+                max={72}
+                value={draft.cooldownHours}
+                onChange={(e) => updateDraft('cooldownHours', Number(e.target.value || 1))}
+                label={language === 'zh-CN' ? '重复发送冷却 (小时)' : 'Resend Cooldown (hours)'}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                {language === 'zh-CN' ? '发送模式' : 'Send Mode'}
+              </label>
+              <select
+                value={draft.sendMode}
+                onChange={(e) => updateDraft('sendMode', e.target.value as SafetyStockAlertConfig['sendMode'])}
+                className="w-full h-9 px-3 rounded-md border border-neutral-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="immediate">{language === 'zh-CN' ? '实时发送' : 'Immediate'}</option>
+                <option value="digest_hourly">{language === 'zh-CN' ? '每小时汇总' : 'Hourly Digest'}</option>
+                <option value="digest_daily">{language === 'zh-CN' ? '每日汇总' : 'Daily Digest'}</option>
+              </select>
+            </div>
+
+            <div>
+              <Input
+                type="time"
+                value={draft.digestTime}
+                onChange={(e) => updateDraft('digestTime', e.target.value)}
+                label={language === 'zh-CN' ? '每日汇总时间' : 'Daily Digest Time'}
+                disabled={draft.sendMode !== 'digest_daily'}
+              />
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                variant="secondary"
+                onClick={sendTestEmail}
+                className="w-full"
+              >
+                <FlaskConical className="h-4 w-4" />
+                {language === 'zh-CN' ? '发送测试邮件' : 'Send Test Email'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold text-neutral-900 mb-3">
+              {language === 'zh-CN' ? '接收人配置' : 'Recipient Configuration'}
+            </h4>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="space-y-2 border border-neutral-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-neutral-700">{language === 'zh-CN' ? '按角色' : 'By Role'}</p>
+                {roleOptions.map(role => (
+                  <label key={role} className="flex items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={draft.recipients.roles.includes(role)}
+                      onChange={() => toggleArrayValue('roles', role)}
+                      className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    {role}
+                  </label>
+                ))}
+              </div>
+
+              <div className="space-y-2 border border-neutral-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-neutral-700">{language === 'zh-CN' ? '按部门' : 'By Department'}</p>
+                {departmentOptions.map(dept => (
+                  <label key={dept} className="flex items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={draft.recipients.departments.includes(dept)}
+                      onChange={() => toggleArrayValue('departments', dept)}
+                      className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    {dept}
+                  </label>
+                ))}
+              </div>
+
+              <div className="space-y-2 border border-neutral-200 rounded-lg p-3 max-h-56 overflow-y-auto">
+                <p className="text-sm font-medium text-neutral-700">{language === 'zh-CN' ? '指定人员' : 'Specific Users'}</p>
+                {availableUsers.map(user => (
+                  <label key={user.id} className="flex items-start gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={draft.recipients.userIds.includes(user.id)}
+                      onChange={() => toggleArrayValue('userIds', user.id)}
+                      className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500 mt-0.5"
+                    />
+                    <span>
+                      <span className="font-medium">{user.name}</span>
+                      <span className="text-neutral-400"> · {user.email}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="border border-neutral-200 rounded-lg p-3">
+                <Textarea
+                  label={language === 'zh-CN' ? '额外邮箱' : 'Extra Emails'}
+                  value={draft.recipients.extraEmails.join('\n')}
+                  onChange={(e) => setDraft(prev => ({
+                    ...prev,
+                    recipients: {
+                      ...prev.recipients,
+                      extraEmails: [e.target.value],
+                    },
+                  }))}
+                  placeholder={language === 'zh-CN' ? '多个邮箱可使用逗号或换行分隔' : 'Use comma or newline to separate multiple emails'}
+                  className="min-h-[160px]"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+            <Input
+              label={language === 'zh-CN' ? '邮件主题模板' : 'Email Subject Template'}
+              value={draft.template.subject}
+              onChange={(e) => setDraft(prev => ({
+                ...prev,
+                template: {
+                  ...prev.template,
+                  subject: e.target.value,
+                },
+              }))}
+            />
+            <Textarea
+              label={language === 'zh-CN' ? '邮件正文模板' : 'Email Body Template'}
+              value={draft.template.body}
+              onChange={(e) => setDraft(prev => ({
+                ...prev,
+                template: {
+                  ...prev.template,
+                  body: e.target.value,
+                },
+              }))}
+              className="min-h-[112px]"
+            />
+          </div>
+
+          <div className="mt-4 p-3 rounded-lg bg-neutral-50 border border-neutral-200">
+            <div className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+              <Bell className="h-4 w-4" />
+              {language === 'zh-CN' ? '当前生效接收人' : 'Effective Recipients'}
+            </div>
+            <p className="text-sm text-neutral-500 mt-1">
+              {recipientEmails.length > 0
+                ? recipientEmails.join(', ')
+                : (language === 'zh-CN' ? '暂无有效邮箱' : 'No valid recipient email')}
+            </p>
+            <p className="text-xs text-neutral-400 mt-2">
+              {language === 'zh-CN'
+                ? '模板变量: {{level}}, {{count}}, {{triggeredAt}}, {{items}}'
+                : 'Template vars: {{level}}, {{count}}, {{triggeredAt}}, {{items}}'}
+            </p>
+          </div>
+        </Card>
       </div>
     </div>
   )

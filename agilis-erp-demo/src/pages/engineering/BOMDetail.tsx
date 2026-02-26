@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { Drawer } from '@/components/ui/Drawer'
 import { TreeView } from '@/components/data/TreeView'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useEngineeringStore } from '@/store/useEngineeringStore'
+import { formatItemNoWithRevision, toRevisionNumber } from '@/lib/item-version'
 import { cn } from '@/lib/utils'
 import {
   Expand, Shrink, Star, Package,
@@ -44,6 +46,7 @@ const mockStock: Record<string, { onHand: number; available: number; reserved: n
 export default function BOMDetail() {
   const { t } = useTranslation()
   const { language } = useAuthStore()
+  const versionsByPart = useEngineeringStore((state) => state.versionsByPart)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set([bomTree.id]))
   const [selectedNode, setSelectedNode] = useState<BOMNode | null>(null)
 
@@ -83,6 +86,11 @@ export default function BOMDetail() {
   }
 
   const stock = selectedNode ? mockStock[selectedNode.itemId] : null
+  const resolveNodeRevision = (node: BOMNode) => {
+    const released = versionsByPart[node.itemId]?.find((entry) => entry.status === 'released')?.version
+    if (released) return released
+    return toRevisionNumber(node.revision) || '01'
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -93,7 +101,7 @@ export default function BOMDetail() {
             {language === 'zh-CN' ? 'BOM 结构' : 'Bill of Materials'}
           </h1>
           <p className="text-sm text-neutral-500 mt-1">
-            <span className="font-mono">{bomTree.itemNo}</span> - {language === 'zh-CN' ? bomTree.itemName : bomTree.itemNameEn} (Rev. {bomTree.revision})
+            <span className="font-mono">{formatItemNoWithRevision(bomTree.itemNo, resolveNodeRevision(bomTree))}</span> - {language === 'zh-CN' ? bomTree.itemName : bomTree.itemNameEn} (Rev. {resolveNodeRevision(bomTree)})
           </p>
         </div>
       </div>
@@ -159,7 +167,9 @@ export default function BOMDetail() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '物料编号' : 'Item No'}</label>
-                  <p className="text-sm font-mono text-neutral-900">{selectedNode.itemNo}</p>
+                  <p className="text-sm font-mono text-neutral-900">
+                    {formatItemNoWithRevision(selectedNode.itemNo, resolveNodeRevision(selectedNode))}
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '获取方式' : 'Sourcing Type'}</label>
@@ -167,7 +177,7 @@ export default function BOMDetail() {
                 </div>
                 <div>
                   <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '版本' : 'Revision'}</label>
-                  <p className="text-sm text-neutral-900">{selectedNode.revision}</p>
+                  <p className="text-sm text-neutral-900">{resolveNodeRevision(selectedNode)}</p>
                 </div>
                 <div>
                   <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '供应商' : 'Supplier'}</label>

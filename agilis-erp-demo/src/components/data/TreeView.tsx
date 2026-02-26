@@ -1,4 +1,5 @@
 import { ChevronRight, Star } from 'lucide-react'
+import { formatItemNoWithRevision, toRevisionNumber } from '@/lib/item-version'
 import { cn } from '@/lib/utils'
 import type { BOMNode } from '@/types'
 
@@ -73,7 +74,9 @@ function TreeNode({
         />
 
         {/* Item number (monospace) */}
-        <span className="font-mono text-xs text-neutral-600 shrink-0">{node.itemNo}</span>
+        <span className="font-mono text-xs text-neutral-600 shrink-0">
+          {formatItemNoWithRevision(node.itemNo, toRevisionNumber(node.revision) || '01')}
+        </span>
 
         {/* Item name */}
         <span className="text-sm text-neutral-900 truncate">{node.itemName}</span>

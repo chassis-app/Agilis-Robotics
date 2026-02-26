@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useSystemConfigStore } from '@/store/useSystemConfigStore'
+import { useEngineeringStore } from '@/store/useEngineeringStore'
+import { stockSummaries } from '@/mock/inventory'
+import { formatItemNoWithRevision } from '@/lib/item-version'
 import { cn } from '@/lib/utils'
+import {
+  calculateSafetyStockLevel,
+  resolveSafetyStockRecipientEmails,
+  type SafetyStockLevel,
+} from '@/lib/safety-stock-alerts'
 import { Download, Search, AlertTriangle } from 'lucide-react'
-
-type StockLevel = 'ok' | 'low' | 'critical'
 
 interface SafetyStockRow {
   id: string
@@ -16,38 +23,73 @@ interface SafetyStockRow {
   currentStock: number
   safetyStock: number
   reorderPoint: number
-  level: StockLevel
+  level: SafetyStockLevel
   lastOrdered: string
 }
 
-const mockSafetyStock: SafetyStockRow[] = [
-  { id: '1', itemNo: 'ITM-001', itemName: '钛合金轴', itemNameEn: 'Titanium Alloy Shaft', currentStock: 120, safetyStock: 50, reorderPoint: 80, level: 'ok', lastOrdered: '2024-12-01' },
-  { id: '2', itemNo: 'ITM-002', itemName: '伺服电机 MG-400', itemNameEn: 'Servo Motor MG-400', currentStock: 15, safetyStock: 20, reorderPoint: 30, level: 'critical', lastOrdered: '2024-11-20' },
-  { id: '3', itemNo: 'ITM-003', itemName: 'PCB控制板 v3.2', itemNameEn: 'PCB Control Board v3.2', currentStock: 42, safetyStock: 30, reorderPoint: 50, level: 'low', lastOrdered: '2024-12-05' },
-  { id: '4', itemNo: 'ITM-004', itemName: '不锈钢外壳 A型', itemNameEn: 'Stainless Steel Housing Type-A', currentStock: 200, safetyStock: 100, reorderPoint: 150, level: 'ok', lastOrdered: '2024-11-15' },
-  { id: '5', itemNo: 'ITM-005', itemName: '密封O型圈', itemNameEn: 'Seal O-Ring', currentStock: 8, safetyStock: 50, reorderPoint: 80, level: 'critical', lastOrdered: '2024-10-28' },
-  { id: '6', itemNo: 'ITM-006', itemName: '轴承套件 BK-200', itemNameEn: 'Bearing Set BK-200', currentStock: 35, safetyStock: 25, reorderPoint: 40, level: 'low', lastOrdered: '2024-12-08' },
-]
-
-const levelConfig: Record<StockLevel, { bg: string; text: string; dot: string; label: string; labelEn: string }> = {
+const levelConfig: Record<SafetyStockLevel, { bg: string; text: string; dot: string; label: string; labelEn: string }> = {
   ok: { bg: 'bg-success-100', text: 'text-success-700', dot: 'bg-success-500', label: '正常', labelEn: 'Normal' },
   low: { bg: 'bg-warning-100', text: 'text-warning-700', dot: 'bg-warning-500', label: '偏低', labelEn: 'Low' },
   critical: { bg: 'bg-danger-100', text: 'text-danger-700', dot: 'bg-danger-500', label: '告急', labelEn: 'Critical' },
 }
 
+function getLastOrdered(receivedDates: string[]) {
+  if (receivedDates.length === 0) return '--'
+  return [...receivedDates].sort((a, b) => b.localeCompare(a))[0]
+}
+
 export default function SafetyStock() {
   const { t } = useTranslation()
-  const { language } = useAuthStore()
+  const { language, availableUsers } = useAuthStore()
+  const { safetyStockAlert } = useSystemConfigStore()
+  const versionsByPart = useEngineeringStore((state) => state.versionsByPart)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filtered = mockSafetyStock.filter(r => {
-    if (!searchQuery) return true
-    const q = searchQuery.toLowerCase()
-    return r.itemNo.toLowerCase().includes(q) || r.itemName.toLowerCase().includes(q) || r.itemNameEn.toLowerCase().includes(q)
+  const getRevision = (itemId: string) => {
+    return versionsByPart[itemId]?.find((entry) => entry.status === 'released')?.version ?? '01'
+  }
+
+  const rows = useMemo<SafetyStockRow[]>(() => {
+    return stockSummaries.map((stock) => ({
+      id: stock.itemId,
+      itemNo: stock.itemNo,
+      itemName: stock.itemName,
+      itemNameEn: stock.itemNameEn,
+      currentStock: stock.totalQty,
+      safetyStock: stock.safetyStock,
+      reorderPoint: stock.reorderPoint,
+      level: calculateSafetyStockLevel(
+        stock.totalQty,
+        stock.safetyStock,
+        safetyStockAlert.criticalThresholdPctBelowSafety,
+      ),
+      lastOrdered: getLastOrdered(stock.lots.map((lot) => lot.receivedDate).filter(Boolean)),
+    }))
+  }, [safetyStockAlert.criticalThresholdPctBelowSafety])
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return rows
+
+    return rows.filter((row) => (
+      formatItemNoWithRevision(row.itemNo, getRevision(row.id)).toLowerCase().includes(q)
+      || row.itemNo.toLowerCase().includes(q)
+      || row.itemName.toLowerCase().includes(q)
+      || row.itemNameEn.toLowerCase().includes(q)
+    ))
+  }, [rows, searchQuery, versionsByPart])
+
+  const criticalCount = rows.filter(r => r.level === 'critical').length
+  const lowCount = rows.filter(r => r.level === 'low').length
+
+  const triggerRows = rows.filter((row) => {
+    if (!safetyStockAlert.enabled) return false
+    if (row.level === 'critical') return safetyStockAlert.notifyOnCritical
+    if (row.level === 'low') return safetyStockAlert.notifyOnLow
+    return false
   })
 
-  const criticalCount = mockSafetyStock.filter(r => r.level === 'critical').length
-  const lowCount = mockSafetyStock.filter(r => r.level === 'low').length
+  const recipients = resolveSafetyStockRecipientEmails(safetyStockAlert, availableUsers)
 
   return (
     <div className="p-6 space-y-4">
@@ -75,6 +117,32 @@ export default function SafetyStock() {
           {t('common.export')}
         </Button>
       </div>
+
+      <Card className="!p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-neutral-500">{language === 'zh-CN' ? '通知状态' : 'Notification Status'}</p>
+            <p className={cn('font-medium mt-1', safetyStockAlert.enabled ? 'text-success-700' : 'text-neutral-500')}>
+              {safetyStockAlert.enabled
+                ? (language === 'zh-CN' ? '已启用' : 'Enabled')
+                : (language === 'zh-CN' ? '已停用' : 'Disabled')}
+            </p>
+          </div>
+          <div>
+            <p className="text-neutral-500">{language === 'zh-CN' ? '匹配告警条目' : 'Matched Alert Rows'}</p>
+            <p className="font-medium text-neutral-900 mt-1">{triggerRows.length}</p>
+          </div>
+          <div>
+            <p className="text-neutral-500">{language === 'zh-CN' ? '邮件接收人' : 'Email Recipients'}</p>
+            <p className="font-medium text-neutral-900 mt-1">{recipients.length}</p>
+          </div>
+        </div>
+        <p className="text-xs text-neutral-500 mt-3">
+          {language === 'zh-CN'
+            ? `发送模式: ${safetyStockAlert.sendMode} · 冷却: ${safetyStockAlert.cooldownHours}小时`
+            : `Send mode: ${safetyStockAlert.sendMode} · Cooldown: ${safetyStockAlert.cooldownHours}h`}
+        </p>
+      </Card>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
@@ -107,7 +175,9 @@ export default function SafetyStock() {
                 return (
                   <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
                     <td className="px-3 py-2">
-                      <span className="text-sm font-medium text-primary-600 font-mono">{row.itemNo}</span>
+                      <span className="text-sm font-medium text-primary-600 font-mono">
+                        {formatItemNoWithRevision(row.itemNo, getRevision(row.id))}
+                      </span>
                     </td>
                     <td className="px-3 py-2 text-sm text-neutral-700">
                       {language === 'zh-CN' ? row.itemName : row.itemNameEn}

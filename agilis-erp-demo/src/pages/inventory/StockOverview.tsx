@@ -4,30 +4,40 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { KPICard } from '@/components/data/KPICard'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useInventoryStore } from '@/store/useInventoryStore'
+import { useEngineeringStore } from '@/store/useEngineeringStore'
+import { formatItemNoWithRevision } from '@/lib/item-version'
 import { cn } from '@/lib/utils'
 import {
   Search, Package, AlertTriangle, DollarSign,
   ChevronDown, ChevronRight, Download, SlidersHorizontal,
 } from 'lucide-react'
-import { stockSummaries } from '@/mock/inventory'
 import type { StockSummary } from '@/types'
 
 export default function StockOverview() {
   const { t } = useTranslation()
   const { language } = useAuthStore()
+  const stockSummaries = useInventoryStore((state) => state.stockSummaries)
+  const versionsByPart = useEngineeringStore((state) => state.versionsByPart)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  const getRevision = (itemId: string) => {
+    const released = versionsByPart[itemId]?.find((entry) => entry.status === 'released')?.version
+    return released || '01'
+  }
 
   const filtered = useMemo(() => {
     if (!searchQuery) return stockSummaries
     const q = searchQuery.toLowerCase()
     return stockSummaries.filter(
       (s) =>
+        formatItemNoWithRevision(s.itemNo, getRevision(s.itemId)).toLowerCase().includes(q) ||
         s.itemNo.toLowerCase().includes(q) ||
         s.itemName.toLowerCase().includes(q) ||
         s.itemNameEn.toLowerCase().includes(q),
     )
-  }, [searchQuery])
+  }, [searchQuery, stockSummaries, versionsByPart])
 
   const totalItems = stockSummaries.length
   const lowStockItems = stockSummaries.filter((s) => s.totalQty < s.safetyStock).length
@@ -119,6 +129,13 @@ export default function StockOverview() {
 
       {/* Stock Table */}
       <Card padding="sm" className="overflow-hidden">
+        <div className="px-3 py-2 border-b border-neutral-200 bg-primary-50/50">
+          <p className="text-xs text-primary-700">
+            {language === 'zh-CN'
+              ? '批次明细按收货日期 FIFO（先入先出）排序'
+              : 'Lot details are arranged by FIFO (oldest receipt first).'}
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
@@ -171,7 +188,9 @@ export default function StockOverview() {
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <span className="text-sm font-medium text-primary-600 font-mono">{stock.itemNo}</span>
+                        <span className="text-sm font-medium text-primary-600 font-mono">
+                          {formatItemNoWithRevision(stock.itemNo, getRevision(stock.itemId))}
+                        </span>
                       </td>
                       <td className="px-3 py-2 text-sm text-neutral-900">
                         {language === 'zh-CN' ? stock.itemName : stock.itemNameEn}
@@ -196,11 +215,14 @@ export default function StockOverview() {
                       </td>
                     </tr>
                     {/* Expanded lot details */}
-                    {expanded && stock.lots.map((lot) => (
+                    {expanded && stock.lots.map((lot, index) => (
                       <tr key={lot.id} className="border-b border-neutral-100 bg-neutral-50/70">
                         <td className="px-3 py-1.5"></td>
                         <td className="px-3 py-1.5" colSpan={2}>
                           <div className="pl-6 flex items-center gap-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary-100 text-primary-700 text-[10px] font-medium">
+                              #{index + 1}
+                            </span>
                             <span className="text-xs font-mono text-neutral-500">{lot.lotNo}</span>
                           </div>
                         </td>

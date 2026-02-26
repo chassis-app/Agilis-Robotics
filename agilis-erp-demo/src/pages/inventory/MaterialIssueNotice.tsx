@@ -1,10 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Card } from '@/components/ui/Card'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Plus, Search, PackageOpen } from 'lucide-react'
+import { useEngineeringStore } from '@/store/useEngineeringStore'
+import { useInventoryStore, type FifoAllocationResult } from '@/store/useInventoryStore'
+import { formatItemNoWithRevision } from '@/lib/item-version'
+import { Plus, Search, PackageOpen, Wand2, Play, TriangleAlert } from 'lucide-react'
 import type { DocumentStatus } from '@/types'
 
 interface MINRow {
@@ -28,9 +31,23 @@ const mockMINs: MINRow[] = [
 export default function MaterialIssueNotice() {
   const { t } = useTranslation()
   const { language } = useAuthStore()
+  const stockSummaries = useInventoryStore((state) => state.stockSummaries)
+  const versionsByPart = useEngineeringStore((state) => state.versionsByPart)
+  const previewFifoAllocation = useInventoryStore((state) => state.previewFifoAllocation)
+  const issueByFifo = useInventoryStore((state) => state.issueByFifo)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<string>('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [selectedItemId, setSelectedItemId] = useState<string>(stockSummaries[0]?.itemId ?? '')
+  const [requestedQty, setRequestedQty] = useState<number>(1)
+  const [previewResult, setPreviewResult] = useState<FifoAllocationResult | null>(null)
+  const [issueResult, setIssueResult] = useState<FifoAllocationResult | null>(null)
+
+  useEffect(() => {
+    if (!selectedItemId && stockSummaries.length > 0) {
+      setSelectedItemId(stockSummaries[0].itemId)
+    }
+  }, [selectedItemId, stockSummaries])
 
   const filtered = useMemo(() => {
     let result = mockMINs
@@ -65,6 +82,29 @@ export default function MaterialIssueNotice() {
       {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
     </span>
   )
+
+  const selectedItem = useMemo(
+    () => stockSummaries.find((entry) => entry.itemId === selectedItemId) ?? null,
+    [selectedItemId, stockSummaries],
+  )
+
+  const handlePreview = () => {
+    if (!selectedItemId || requestedQty <= 0) return
+    const result = previewFifoAllocation(selectedItemId, requestedQty)
+    setPreviewResult(result)
+    setIssueResult(null)
+  }
+
+  const handleIssue = () => {
+    if (!selectedItemId || requestedQty <= 0) return
+    const result = issueByFifo(selectedItemId, requestedQty)
+    setIssueResult(result)
+    setPreviewResult(result)
+  }
+
+  const getRevision = (itemId: string) => {
+    return versionsByPart[itemId]?.find((entry) => entry.status === 'released')?.version ?? '01'
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -163,6 +203,118 @@ export default function MaterialIssueNotice() {
             <span className="text-sm text-neutral-500">1 / 1</span>
           </div>
         </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-neutral-900">
+              {language === 'zh-CN' ? 'FIFO 批次发料演示' : 'FIFO Batch Issue Demo'}
+            </h3>
+            <p className="text-sm text-neutral-500">
+              {language === 'zh-CN'
+                ? '演示按收货日期先入先出分配批次并扣减库存'
+                : 'Preview and issue lots by FIFO (oldest receipt first).'}
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={handlePreview}>
+            <Wand2 className="h-4 w-4" />
+            {language === 'zh-CN' ? '自动分配' : 'Auto Allocate'}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="md:col-span-2">
+            <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '物料' : 'Item'}</label>
+            <select
+              value={selectedItemId}
+              onChange={(e) => setSelectedItemId(e.target.value)}
+              className="mt-1 w-full h-9 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {stockSummaries.map((stock) => (
+                <option key={stock.itemId} value={stock.itemId}>
+                  {formatItemNoWithRevision(stock.itemNo, getRevision(stock.itemId))} - {language === 'zh-CN' ? stock.itemName : stock.itemNameEn}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '申请数量' : 'Requested Qty'}</label>
+            <input
+              type="number"
+              min={1}
+              value={requestedQty}
+              onChange={(e) => setRequestedQty(Number(e.target.value))}
+              className="mt-1 w-full h-9 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div className="flex items-end">
+            <Button size="sm" onClick={handleIssue} disabled={!previewResult?.canAllocateFull}>
+              <Play className="h-4 w-4" />
+              {language === 'zh-CN' ? '执行发料' : 'Issue Now'}
+            </Button>
+          </div>
+        </div>
+
+        {selectedItem && (
+          <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+            <span className="font-medium">{language === 'zh-CN' ? '当前可用库存' : 'Current Available'}: </span>
+            {selectedItem.availableQty} {selectedItem.uom}
+          </div>
+        )}
+
+        {previewResult && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-neutral-900">
+                {language === 'zh-CN' ? 'FIFO 分配结果' : 'FIFO Allocation Result'}
+              </h4>
+              <span className="text-xs text-neutral-500">
+                {language === 'zh-CN'
+                  ? `已分配 ${previewResult.allocatedQty} / 申请 ${previewResult.requestedQty}`
+                  : `Allocated ${previewResult.allocatedQty} / Requested ${previewResult.requestedQty}`}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-neutral-200 bg-neutral-50">
+                    <th className="px-3 py-2 text-xs font-medium text-neutral-500">#</th>
+                    <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '批次号' : 'Lot No.'}</th>
+                    <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '收货日期' : 'Received'}</th>
+                    <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '分配数量' : 'Allocated Qty'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewResult.allocations.map((allocation, index) => (
+                    <tr key={`${allocation.lotId}-${index}`} className="border-b border-neutral-100">
+                      <td className="px-3 py-2 text-xs text-neutral-500">{index + 1}</td>
+                      <td className="px-3 py-2 text-sm font-mono text-neutral-700">{allocation.lotNo}</td>
+                      <td className="px-3 py-2 text-sm text-neutral-700">{allocation.receivedDate}</td>
+                      <td className="px-3 py-2 text-sm text-neutral-900 text-right font-medium">{allocation.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {previewResult.shortageQty > 0 && (
+              <div className="inline-flex items-center gap-2 rounded-md bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                <TriangleAlert className="h-4 w-4" />
+                {language === 'zh-CN'
+                  ? `库存不足，缺口 ${previewResult.shortageQty}`
+                  : `Insufficient stock, shortage ${previewResult.shortageQty}`}
+              </div>
+            )}
+          </div>
+        )}
+
+        {issueResult && issueResult.canAllocateFull && (
+          <div className="rounded-md bg-success-50 px-3 py-2 text-sm text-success-700">
+            {language === 'zh-CN'
+              ? '发料成功。请前往库存总览查看批次数量已按 FIFO 扣减。'
+              : 'Issue completed. Open Stock Overview to confirm FIFO lot deductions.'}
+          </div>
+        )}
       </Card>
     </div>
   )

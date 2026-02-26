@@ -6,39 +6,15 @@ import { Drawer } from '@/components/ui/Drawer'
 import { Tabs } from '@/components/ui/Tabs'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useEngineeringStore } from '@/store/useEngineeringStore'
+import { formatItemNoWithRevision, parseRevisionIndex, toRevisionNumber } from '@/lib/item-version'
 import { cn } from '@/lib/utils'
 import {
   Search, Plus, Download, SlidersHorizontal,
   Package, X,
 } from 'lucide-react'
 import { items } from '@/mock/items'
-import type { Item, SourcingType, ItemLifecycle } from '@/types'
-
-// Inline revision history mock
-const revisionHistory: Record<string, Array<{ rev: string; status: string; date: string; desc: string; by: string }>> = {
-  'itm01': [
-    { rev: 'A', status: 'approved', date: '2024-06-15', desc: '初始版本', by: '张伟' },
-  ],
-  'itm02': [
-    { rev: 'A', status: 'approved', date: '2024-03-01', desc: '初始版本', by: '张伟' },
-    { rev: 'B', status: 'approved', date: '2024-08-20', desc: '更新材料规格', by: '王芳' },
-  ],
-  'itm04': [
-    { rev: 'A', status: 'approved', date: '2024-01-10', desc: '初始版本', by: '张伟' },
-    { rev: 'B', status: 'approved', date: '2024-05-15', desc: '增加通信模块', by: '王芳' },
-    { rev: 'C', status: 'approved', date: '2024-09-20', desc: 'ARM处理器升级', by: '张伟' },
-  ],
-  'itm10': [
-    { rev: 'A', status: 'approved', date: '2024-02-01', desc: '初始版本', by: '张伟' },
-    { rev: 'B', status: 'approved', date: '2024-07-10', desc: '增加基准块精度', by: '王芳' },
-  ],
-  'itm12': [
-    { rev: 'A', status: 'approved', date: '2023-12-01', desc: '初始版本', by: '张伟' },
-    { rev: 'B', status: 'approved', date: '2024-02-15', desc: '固件优化', by: '王芳' },
-    { rev: 'C', status: 'approved', date: '2024-06-01', desc: '新增运动控制算法', by: '张伟' },
-    { rev: 'D', status: 'approved', date: '2024-10-01', desc: '安全协议升级', by: '王芳' },
-  ],
-}
+import type { Item, SourcingType, PartSource, ItemLifecycle, PartVersionStatus } from '@/types'
 
 const supplierNames: Record<string, string> = {
   sup1: '苏州精密零件有限公司',
@@ -57,21 +33,43 @@ const supplierNamesEn: Record<string, string> = {
 export default function ItemMaster() {
   const { t } = useTranslation()
   const { language } = useAuthStore()
+  const versionsByPart = useEngineeringStore((state) => state.versionsByPart)
+  const createDraftVersion = useEngineeringStore((state) => state.createDraftVersion)
+  const releaseVersion = useEngineeringStore((state) => state.releaseVersion)
+  const markVersionObsolete = useEngineeringStore((state) => state.markVersionObsolete)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [drawerTab, setDrawerTab] = useState('general')
+  const [newVersionNote, setNewVersionNote] = useState('')
+
+  function getReleasedRevision(itemId: string, fallbackRevision: string) {
+    const released = versionsByPart[itemId]?.find((entry) => entry.status === 'released')?.version
+    if (released) return released
+    return toRevisionNumber(fallbackRevision) || '01'
+  }
 
   const filtered = useMemo(() => {
     if (!searchQuery) return items
     const q = searchQuery.toLowerCase()
     return items.filter(
       (item) =>
+        formatItemNoWithRevision(item.itemNo, getReleasedRevision(item.id, item.revision)).toLowerCase().includes(q) ||
         item.itemNo.toLowerCase().includes(q) ||
         item.name.toLowerCase().includes(q) ||
         item.nameEn.toLowerCase().includes(q) ||
         item.category.toLowerCase().includes(q),
     )
-  }, [searchQuery])
+  }, [searchQuery, versionsByPart])
+
+  const selectedItemVersions = useMemo(
+    () => (selectedItem ? versionsByPart[selectedItem.id] ?? [] : []),
+    [selectedItem, versionsByPart],
+  )
+
+  const selectedReleasedVersion = useMemo(
+    () => selectedItemVersions.find((entry) => entry.status === 'released') ?? null,
+    [selectedItemVersions],
+  )
 
   const sourcingBadge = (type: SourcingType) => {
     const cfg: Record<SourcingType, { zh: string; en: string; color: string }> = {
@@ -80,6 +78,20 @@ export default function ItemMaster() {
       subcontract: { zh: '外协', en: 'Subcontract', color: 'bg-orange-100 text-orange-700' },
     }
     const c = cfg[type]
+    return (
+      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', c.color)}>
+        {language === 'zh-CN' ? c.zh : c.en}
+      </span>
+    )
+  }
+
+  const partSourceBadge = (source: PartSource) => {
+    const cfg: Record<PartSource, { zh: string; en: string; color: string }> = {
+      purchased_from_vendor: { zh: '供应商采购', en: 'Purchased from vendor', color: 'bg-blue-100 text-blue-700' },
+      outsource_production: { zh: '外协生产', en: 'Outsource production', color: 'bg-orange-100 text-orange-700' },
+      self_manufactured: { zh: '自制生产', en: 'Self-manufactured', color: 'bg-green-100 text-green-700' },
+    }
+    const c = cfg[source]
     return (
       <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', c.color)}>
         {language === 'zh-CN' ? c.zh : c.en}
@@ -101,6 +113,20 @@ export default function ItemMaster() {
     )
   }
 
+  const versionStatusBadge = (status: PartVersionStatus) => {
+    const cfg: Record<PartVersionStatus, { zh: string; en: string; color: string }> = {
+      draft: { zh: '草稿', en: 'Draft', color: 'bg-warning-100 text-warning-700' },
+      released: { zh: '已发布', en: 'Released', color: 'bg-success-100 text-success-700' },
+      obsolete: { zh: '已作废', en: 'Obsolete', color: 'bg-neutral-100 text-neutral-600' },
+    }
+    const current = cfg[status]
+    return (
+      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', current.color)}>
+        {language === 'zh-CN' ? current.zh : current.en}
+      </span>
+    )
+  }
+
   const drawerTabs = [
     { id: 'general', label: language === 'zh-CN' ? '基本信息' : 'General' },
     { id: 'revisions', label: language === 'zh-CN' ? '版本历史' : 'Revisions' },
@@ -111,6 +137,7 @@ export default function ItemMaster() {
   const openDrawer = (item: Item) => {
     setSelectedItem(item)
     setDrawerTab('general')
+    setNewVersionNote('')
   }
 
   return (
@@ -176,6 +203,9 @@ export default function ItemMaster() {
                     {language === 'zh-CN' ? '获取方式' : 'Sourcing'}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">
+                    {language === 'zh-CN' ? '零件来源' : 'Part Source'}
+                  </th>
+                  <th className="px-3 py-2 text-xs font-medium text-neutral-500">
                     {language === 'zh-CN' ? '生命周期' : 'Lifecycle'}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">
@@ -197,13 +227,16 @@ export default function ItemMaster() {
                     onClick={() => openDrawer(item)}
                   >
                     <td className="px-3 py-2">
-                      <span className="text-sm font-medium text-primary-600 font-mono">{item.itemNo}</span>
+                      <span className="text-sm font-medium text-primary-600 font-mono">
+                        {formatItemNoWithRevision(item.itemNo, getReleasedRevision(item.id, item.revision))}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
                       <div className="text-sm text-neutral-900">{language === 'zh-CN' ? item.name : item.nameEn}</div>
                     </td>
                     <td className="px-3 py-2 text-sm text-neutral-500">{item.category}</td>
                     <td className="px-3 py-2">{sourcingBadge(item.sourcingType)}</td>
+                    <td className="px-3 py-2">{partSourceBadge(item.partSource)}</td>
                     <td className="px-3 py-2">{lifecycleBadge(item.lifecycle)}</td>
                     <td className="px-3 py-2 text-sm text-neutral-500">{item.uom}</td>
                     <td className="px-3 py-2 text-sm text-neutral-700">
@@ -234,7 +267,7 @@ export default function ItemMaster() {
         open={!!selectedItem}
         onClose={() => setSelectedItem(null)}
         title={selectedItem
-          ? `${selectedItem.itemNo} - ${language === 'zh-CN' ? selectedItem.name : selectedItem.nameEn}`
+          ? `${formatItemNoWithRevision(selectedItem.itemNo, getReleasedRevision(selectedItem.id, selectedItem.revision))} - ${language === 'zh-CN' ? selectedItem.name : selectedItem.nameEn}`
           : ''}
         wide
       >
@@ -248,11 +281,15 @@ export default function ItemMaster() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '物料编号' : 'Item No'}</label>
-                    <p className="text-sm font-mono text-neutral-900 mt-0.5">{selectedItem.itemNo}</p>
+                    <p className="text-sm font-mono text-neutral-900 mt-0.5">
+                      {formatItemNoWithRevision(selectedItem.itemNo, getReleasedRevision(selectedItem.id, selectedItem.revision))}
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '版本' : 'Revision'}</label>
-                    <p className="text-sm text-neutral-900 mt-0.5">{selectedItem.revision}</p>
+                    <p className="text-sm text-neutral-900 mt-0.5">
+                      {selectedReleasedVersion?.version ?? (toRevisionNumber(selectedItem.revision) || '01')}
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '中文名称' : 'Name (CN)'}</label>
@@ -273,6 +310,10 @@ export default function ItemMaster() {
                   <div>
                     <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '获取方式' : 'Sourcing Type'}</label>
                     <div className="mt-0.5">{sourcingBadge(selectedItem.sourcingType)}</div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '零件来源' : 'Part Source'}</label>
+                    <div className="mt-0.5">{partSourceBadge(selectedItem.partSource)}</div>
                   </div>
                   <div>
                     <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '生命周期' : 'Lifecycle'}</label>
@@ -308,41 +349,83 @@ export default function ItemMaster() {
 
             {/* Revisions Tab */}
             {drawerTab === 'revisions' && (
-              <div className="pt-2">
-                {(revisionHistory[selectedItem.id] || []).length > 0 ? (
+              <div className="pt-2 space-y-3">
+                <div className="flex flex-col md:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={newVersionNote}
+                    onChange={(e) => setNewVersionNote(e.target.value)}
+                    placeholder={language === 'zh-CN' ? '输入变更说明 (可选)' : 'Change note (optional)'}
+                    className="h-9 flex-1 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      createDraftVersion(
+                        selectedItem.id,
+                        newVersionNote || (language === 'zh-CN' ? '前端演示草稿版本' : 'Frontend demo draft version'),
+                      )
+                      setNewVersionNote('')
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {language === 'zh-CN' ? '创建草稿版本' : 'Create Draft Version'}
+                  </Button>
+                </div>
+
+                {selectedItemVersions.length > 0 ? (
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-neutral-200 bg-neutral-50">
                         <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '版本' : 'Rev'}</th>
                         <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '状态' : 'Status'}</th>
-                        <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '日期' : 'Date'}</th>
-                        <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '描述' : 'Description'}</th>
+                        <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '生效日期' : 'Effective Date'}</th>
+                        <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '变更说明' : 'Change Note'}</th>
                         <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '创建人' : 'By'}</th>
+                        <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '操作' : 'Actions'}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(revisionHistory[selectedItem.id] || []).map((rev, i) => (
-                        <tr key={i} className="border-b border-neutral-100">
-                          <td className="px-3 py-2 text-sm font-mono font-medium text-neutral-900">{rev.rev}</td>
-                          <td className="px-3 py-2">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-700">
-                              <span className="w-1.5 h-1.5 rounded-full bg-success-500" />
-                              {language === 'zh-CN' ? '已批准' : 'Approved'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-sm text-neutral-700">{rev.date}</td>
-                          <td className="px-3 py-2 text-sm text-neutral-700">{rev.desc}</td>
-                          <td className="px-3 py-2 text-sm text-neutral-500">{rev.by}</td>
-                        </tr>
-                      ))}
+                      {[...selectedItemVersions]
+                        .sort((a, b) => parseRevisionIndex(b.version) - parseRevisionIndex(a.version))
+                        .map((version) => (
+                          <tr key={version.id} className="border-b border-neutral-100">
+                            <td className="px-3 py-2 text-sm font-mono font-medium text-neutral-900">{version.version}</td>
+                            <td className="px-3 py-2">{versionStatusBadge(version.status)}</td>
+                            <td className="px-3 py-2 text-sm text-neutral-700">{version.effectiveFrom || '-'}</td>
+                            <td className="px-3 py-2 text-sm text-neutral-700">{version.changeNote || '-'}</td>
+                            <td className="px-3 py-2 text-sm text-neutral-500">{version.createdBy}</td>
+                            <td className="px-3 py-2">
+                              <div className="flex justify-end gap-2">
+                                {version.status === 'draft' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => releaseVersion(selectedItem.id, version.version)}
+                                    >
+                                      {language === 'zh-CN' ? '发布' : 'Release'}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => markVersionObsolete(selectedItem.id, version.version)}
+                                    >
+                                      {language === 'zh-CN' ? '作废' : 'Obsolete'}
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-sm text-neutral-400">
-                      {language === 'zh-CN' ? '仅有当前版本' : 'Only current revision exists'}
+                      {language === 'zh-CN' ? '暂无版本记录' : 'No versions available'}
                     </p>
-                    <p className="text-xs text-neutral-400 mt-1">Rev. {selectedItem.revision}</p>
                   </div>
                 )}
               </div>

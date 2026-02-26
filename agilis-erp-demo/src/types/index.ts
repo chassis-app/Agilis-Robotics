@@ -13,6 +13,7 @@ export type DocumentStatus =
 export type Priority = 'normal' | 'urgent';
 
 export type SourcingType = 'purchase' | 'make' | 'subcontract';
+export type PartSource = 'purchased_from_vendor' | 'outsource_production' | 'self_manufactured';
 
 export type ItemLifecycle = 'rd' | 'pilot' | 'mass_production';
 
@@ -51,6 +52,7 @@ export interface Item {
   category: string;
   uom: string;
   sourcingType: SourcingType;
+  partSource: PartSource;
   lifecycle: ItemLifecycle;
   defaultSupplierId: string;
   leadTimeDays: number;
@@ -214,6 +216,19 @@ export interface BOMNode {
   substitutes: BOMSubstitute[];
 }
 
+export type PartVersionStatus = 'draft' | 'released' | 'obsolete';
+
+export interface PartVersion {
+  id: string;
+  partId: string;
+  version: string;
+  status: PartVersionStatus;
+  effectiveFrom: string;
+  changeNote: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 // ---------------------------------------------------------------------------
 // Quality
 // ---------------------------------------------------------------------------
@@ -270,6 +285,13 @@ export interface Lot {
   supplierId: string;
 }
 
+export interface LotAllocation {
+  lotId: string;
+  lotNo: string;
+  receivedDate: string;
+  quantity: number;
+}
+
 export interface StockSummary {
   itemId: string;
   itemNo: string;
@@ -282,6 +304,36 @@ export interface StockSummary {
   lots: Lot[];
   safetyStock: number;
   reorderPoint: number;
+}
+
+// ---------------------------------------------------------------------------
+// System Configuration
+// ---------------------------------------------------------------------------
+
+export type SafetyStockSendMode = 'immediate' | 'digest_hourly' | 'digest_daily';
+
+export interface SafetyStockAlertRecipients {
+  roles: string[];
+  departments: string[];
+  userIds: string[];
+  extraEmails: string[];
+}
+
+export interface SafetyStockEmailTemplate {
+  subject: string;
+  body: string;
+}
+
+export interface SafetyStockAlertConfig {
+  enabled: boolean;
+  notifyOnLow: boolean;
+  notifyOnCritical: boolean;
+  criticalThresholdPctBelowSafety: number;
+  sendMode: SafetyStockSendMode;
+  digestTime: string;
+  cooldownHours: number;
+  recipients: SafetyStockAlertRecipients;
+  template: SafetyStockEmailTemplate;
 }
 
 // ---------------------------------------------------------------------------

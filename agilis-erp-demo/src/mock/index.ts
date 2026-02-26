@@ -15,6 +15,7 @@ export { ncReports } from './quality';
 export { goodsReceipts } from './goods-receipts';
 export { materialIssueNotices } from './material-issues';
 export { salesOrders } from './sales';
+export { defaultSafetyStockAlertConfig } from './system-config';
 export {
   kpiData,
   pendingApprovals,
