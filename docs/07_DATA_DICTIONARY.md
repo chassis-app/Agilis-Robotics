@@ -202,6 +202,19 @@ Alignment result:
 | Chinese | English | Canonical key | Module |
 |---|---|---|---|
 | 销售订单号 | Sales Order No. | `sales_order_no` | PR/Planning |
+| 销售预测单号 | Sales Forecast No. | `forecast_no` | Sales Planning |
+| 预测期间 | Forecast Period | `forecast_period` | Sales Planning |
+| 预测数量 | Forecast Quantity | `forecast_qty` | Sales Planning |
+| 预测置信度 | Forecast Confidence | `confidence_level` | Sales Planning |
+| 接受预测 | Accept Forecast | `action_accept_forecast` | Workflow action |
+| BOM展开 | BOM Explosion | `bom_explosion` | Planning |
+| 净需求 | Net Requirement | `net_requirement` | Planning |
+| 在途数量 | On Order Quantity | `on_order_qty` | Planning |
+| 供应商优选标记 | Preferred Supplier Flag | `is_preferred` | Supplier-Item |
+| PR生成日志 | PR Generation Log | `pr_generation_log` | Planning |
+| 来源销售订单 | Source Sales Order | `source_so_id` | PR/Sales |
+| 来源预测单 | Source Forecast | `source_forecast_id` | PR/Planning |
+| 多供应商待处理 | Multi-Supplier Pending | `multi_supplier_resolution` | Planning |
 | 存货图片 | Item Image | `item_image_uri` | Item/Docs |
 | 出库类别 | Outbound Category | `outbound_category` | Warehouse |
 | 项目 | Project | `project_id` | Cross-module |
@@ -227,6 +240,11 @@ Alignment result:
 | 生成委外入库单(退库) | Generate Subcontract Return Receipt Note | `action_generate_subcontract_return_receipt_note` | Workflow action |
 | 生成调拨单 | Generate Stock Transfer Order | `action_generate_stock_transfer` | Workflow action |
 | 生成调拨单(分单) | Generate Split Stock Transfer | `action_generate_stock_transfer_split` | Workflow action |
+| 根据销售订单生成请购单 | Generate PR from Sales Order | `action_generate_pr_from_so` | Workflow action |
+| 根据预测单生成请购单 | Generate PR from Forecast | `action_generate_pr_from_forecast` | Workflow action |
+| 分析物料需求 | Analyze Material Requirements | `action_analyze_material_requirements` | Planning |
+| 解决多供应商冲突 | Resolve Multi-Supplier Conflict | `action_resolve_multi_supplier` | Planning |
+| 导入预测Excel | Import Forecast Excel | `action_import_forecast_excel` | Planning |
 
 ### 3.5 Engineering and BOM Fields
 | Chinese | English | Canonical key |

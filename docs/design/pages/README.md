@@ -72,7 +72,10 @@ Files use numbered prefixes grouped by module:
 ### Sales
 | File | Screen | Route |
 |---|---|---|
-| [60_sales-shipments.md](60_sales-shipments.md) | Sales Orders & Shipments | `/sales/orders` |
+| [60_sales-shipments.md](60_sales-shipments.md) | Sales Orders & Shipments List | `/sales/orders` |
+| [61_sales-order-detail.md](61_sales-order-detail.md) | Sales Order Detail (with PR Generation) | `/sales/orders/:id` |
+| [62_sales-planning.md](62_sales-planning.md) | Sales Planning & Forecast | `/sales/planning` |
+| [63_sales-forecast-list.md](63_sales-forecast-list.md) | Sales Forecast List | `/sales/forecasts` |
 
 ### Finance
 | File | Screen | Route |
@@ -95,7 +98,7 @@ Files use numbered prefixes grouped by module:
 | [92_admin-custom-fields.md](92_admin-custom-fields.md) | Custom Fields | `/admin/custom-fields` |
 | [93_admin-system-config.md](93_admin-system-config.md) | System Config & Integrations | `/admin/system-config` |
 
-## Total: 28 screen prompts covering all 14 workflows and 27 requirements
+## Total: 31 screen prompts covering all 15 workflows and 27 requirements
 
 ## Workflow Coverage
 
@@ -111,10 +114,11 @@ Files use numbered prefixes grouped by module:
 | WF-08 | 30, 32 |
 | WF-09 | 42, 41 |
 | WF-10 | 43 |
-| WF-11 | 60, 52 |
+| WF-11 | 60, 61, 52 |
 | WF-12 | 25 |
 | WF-13 | 24 |
 | WF-14 | 72, 93 |
+| WF-15 | 61, 62, 63 |
 
 ## Requirement Coverage
 

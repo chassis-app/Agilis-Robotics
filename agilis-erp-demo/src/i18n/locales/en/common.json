@@ -33,6 +33,7 @@
     "sales_orders": "Sales Orders",
     "finance": "Finance",
     "costing": "Costing",
+    "payment_requests": "Payment Requests",
     "ap_reconciliation": "AP Reconciliation",
     "integration": "Integration Monitor",
     "reports": "Reports",

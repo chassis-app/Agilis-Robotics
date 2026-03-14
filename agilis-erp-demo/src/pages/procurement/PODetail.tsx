@@ -4,8 +4,9 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuthStore } from '@/store/useAuthStore'
-import { ArrowLeft, Pencil, Send, Printer, Download } from 'lucide-react'
-import type { DocumentStatus } from '@/types'
+import { paymentModeLabels } from '@/mock/payment-requests'
+import { AlertTriangle, ArrowLeft, CreditCard, Download, Pencil, Printer, Send } from 'lucide-react'
+import type { DocumentStatus, PaymentMode } from '@/types'
 
 interface POLineItem {
   id: string
@@ -18,6 +19,18 @@ interface POLineItem {
   unitPrice: number
   amount: number
   receivedQty: number
+}
+
+interface POPaymentPlan {
+  id: string
+  label: string
+  mode: PaymentMode
+  trigger: string
+  percentage: number
+  amount: number
+  requestedAmount: number
+  paidAmount: number
+  status: 'open' | 'requested' | 'paid'
 }
 
 const poData = {
@@ -33,10 +46,26 @@ const poData = {
   deliveryDate: '2024-12-25',
   currency: 'CNY',
   totalAmount: 128000,
+  outstandingAmount: 90000,
   createdAt: '2024-12-04',
   prRef: 'PR-2024-0002',
   notes: '手术机器人项目订单，请严格按照图纸要求生产。',
   notesEn: 'Surgical robot project order. Please strictly follow the drawing specifications.',
+  paymentSummary: {
+    hasMixedModes: true,
+    reapprovalRequired: true,
+    changedFrom: 'Net 30',
+    changedTo: '30% Prepay + 40% COD + 30% Monthly Payment',
+  },
+  paymentPlan: [
+    { id: 'pp-1', label: '30% Prepay', mode: 'prepay' as const, trigger: 'Before production start', percentage: 30, amount: 38400, requestedAmount: 38000, paidAmount: 38000, status: 'paid' as const },
+    { id: 'pp-2', label: '40% COD', mode: 'cod' as const, trigger: 'On accepted goods receipt', percentage: 40, amount: 51200, requestedAmount: 32000, paidAmount: 0, status: 'requested' as const },
+    { id: 'pp-3', label: '30% Monthly Payment', mode: 'monthly' as const, trigger: 'Month-end verified statement', percentage: 30, amount: 38400, requestedAmount: 0, paidAmount: 0, status: 'open' as const },
+  ] as POPaymentPlan[],
+  paymentRequests: [
+    { id: 'payreq-1', requestNo: 'PAY-REQ-2025-0001', amount: 38000, status: 'approved' as DocumentStatus },
+    { id: 'payreq-2', requestNo: 'PAY-REQ-2025-0002', amount: 32000, status: 'in_approval' as DocumentStatus },
+  ],
   lines: [
     { id: '1', lineNo: 1, itemNo: 'ITM-0002', itemName: '钛合金轴', itemNameEn: 'Titanium Alloy Shaft', quantity: 20, uom: 'EA', unitPrice: 2500, amount: 50000, receivedQty: 20 },
     { id: '2', lineNo: 2, itemNo: 'ITM-0003', itemName: '伺服电机模组', itemNameEn: 'Servo Motor Module', quantity: 10, uom: 'EA', unitPrice: 4200, amount: 42000, receivedQty: 8 },
@@ -69,6 +98,10 @@ export default function PODetail() {
           <p className="text-sm text-neutral-500 mt-1">{t('po.detail_title')}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => navigate('/finance/payment-requests')}>
+            <CreditCard className="h-4 w-4" />
+            {language === 'zh-CN' ? '付款申请' : 'Payment Requests'}
+          </Button>
           <Button variant="secondary" size="sm">
             <Printer className="h-4 w-4" />
             {language === 'zh-CN' ? '打印' : 'Print'}
@@ -111,11 +144,19 @@ export default function PODetail() {
           <div className="space-y-3">
             <div>
               <label className="text-xs text-neutral-500">{t('po.payment_terms')}</label>
-              <p className="text-sm text-neutral-900">{poData.paymentTerms}</p>
+              <p className="text-sm text-neutral-900">
+                {poData.paymentSummary.hasMixedModes
+                  ? (language === 'zh-CN' ? '混合付款模式' : 'Mixed payment modes')
+                  : poData.paymentTerms}
+              </p>
             </div>
             <div>
               <label className="text-xs text-neutral-500">{t('po.delivery_date')}</label>
               <p className="text-sm text-neutral-900">{poData.deliveryDate}</p>
+            </div>
+            <div>
+              <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '未付余额' : 'Outstanding Payment'}</label>
+              <p className="text-lg font-semibold text-neutral-900">{formatAmount(poData.outstandingAmount)}</p>
             </div>
             <div>
               <label className="text-xs text-neutral-500">{t('common.total')}</label>
@@ -129,6 +170,119 @@ export default function PODetail() {
             <p className="text-sm text-neutral-700 mt-1">{language === 'zh-CN' ? poData.notes : poData.notesEn}</p>
           </div>
         )}
+      </Card>
+
+      <Card className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-semibold text-neutral-900">
+                {language === 'zh-CN' ? '付款计划' : 'Payment Plan'}
+              </h3>
+              {poData.paymentSummary.hasMixedModes && (
+                <span className="rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700">
+                  {language === 'zh-CN' ? '同一PO混合付款模式' : 'Mixed modes in same PO'}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-neutral-500 mt-1">
+              {language === 'zh-CN'
+                ? '同一张PO内允许预付款、货到付款、月结混合存在，并按付款节点生成申请。'
+                : 'Prepay, COD, and monthly settlement can coexist in the same PO and generate payment requests by milestone.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => navigate('/finance/payment-requests')}>
+              {language === 'zh-CN' ? '查看付款申请' : 'View Requests'}
+            </Button>
+            <Button size="sm" onClick={() => navigate('/finance/payment-requests/new')}>
+              <CreditCard className="h-4 w-4" />
+              {language === 'zh-CN' ? '生成付款申请' : 'Generate Payment Request'}
+            </Button>
+          </div>
+        </div>
+
+        {poData.paymentSummary.reapprovalRequired && (
+          <div className="flex items-start gap-3 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3">
+            <AlertTriangle className="h-5 w-5 text-warning-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-warning-800">
+                {language === 'zh-CN' ? '付款模式变更需重新审批' : 'Payment mode change requires re-approval'}
+              </p>
+              <p className="text-sm text-warning-700 mt-1">
+                {language === 'zh-CN'
+                  ? `原付款条件为 ${poData.paymentSummary.changedFrom}，当前变更为 ${poData.paymentSummary.changedTo}。`
+                  : `Original payment terms were ${poData.paymentSummary.changedFrom}; current plan is ${poData.paymentSummary.changedTo}.`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-neutral-200 bg-neutral-50">
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '付款阶段' : 'Schedule'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '付款模式' : 'Mode'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '触发条件' : 'Trigger'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '计划金额' : 'Planned Amount'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '已申请' : 'Requested'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '已支付' : 'Paid'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '待付余额' : 'Outstanding'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.status')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {poData.paymentPlan.map(stage => {
+                const outstanding = stage.amount - stage.paidAmount
+                const stageStatusLabel = {
+                  open: language === 'zh-CN' ? '待申请' : 'Open',
+                  requested: language === 'zh-CN' ? '申请中' : 'Requested',
+                  paid: language === 'zh-CN' ? '已支付' : 'Paid',
+                }[stage.status]
+
+                return (
+                  <tr key={stage.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+                    <td className="px-3 py-2 text-sm text-neutral-900">
+                      <div className="font-medium">{stage.label}</div>
+                      <div className="text-xs text-neutral-400 mt-0.5">{stage.percentage}%</div>
+                    </td>
+                    <td className="px-3 py-2 text-sm text-neutral-700">
+                      {language === 'zh-CN' ? paymentModeLabels[stage.mode].zh : paymentModeLabels[stage.mode].en}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-neutral-500">{stage.trigger}</td>
+                    <td className="px-3 py-2 text-sm text-neutral-900 text-right">{formatAmount(stage.amount)}</td>
+                    <td className="px-3 py-2 text-sm text-neutral-700 text-right">{formatAmount(stage.requestedAmount)}</td>
+                    <td className="px-3 py-2 text-sm text-neutral-700 text-right">{formatAmount(stage.paidAmount)}</td>
+                    <td className="px-3 py-2 text-sm font-semibold text-neutral-900 text-right">{formatAmount(outstanding)}</td>
+                    <td className="px-3 py-2 text-sm text-neutral-700">{stageStatusLabel}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="pt-2 border-t border-neutral-200">
+          <h4 className="text-sm font-semibold text-neutral-900 mb-3">
+            {language === 'zh-CN' ? '已生成付款申请' : 'Generated Payment Requests'}
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {poData.paymentRequests.map(request => (
+              <button
+                key={request.id}
+                onClick={() => navigate(`/finance/payment-requests/${request.id}`)}
+                className="rounded-lg border border-neutral-200 px-4 py-3 text-left hover:border-primary-300 hover:bg-primary-50/40"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium font-mono text-primary-600">{request.requestNo}</span>
+                  <StatusBadge status={request.status} locale={language} />
+                </div>
+                <p className="text-sm text-neutral-700 mt-2">{formatAmount(request.amount)}</p>
+              </button>
+            ))}
+          </div>
+        </div>
       </Card>
 
       {/* Line Items */}

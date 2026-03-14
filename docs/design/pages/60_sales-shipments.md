@@ -1,22 +1,23 @@
-# Screen Prompt: Sales Orders & Shipments
+# Screen Prompt: Sales Orders List & Shipments
 
 ## Screen ID
 `SALES-ORDERS` / `SALES-SHIPMENTS`
 
 ## Route
 - Orders List: `/sales/orders`
-- Order Detail: `/sales/orders/:id`
+- Order Detail: `/sales/orders/:id` → See [61_sales-order-detail.md](61_sales-order-detail.md)
 - Shipments List: `/sales/shipments`
 - Shipment Detail: `/sales/shipments/:id`
 
 ## Purpose
-Manage sales orders and outbound shipments of finished goods. Allocate lots/serials to shipments with full component genealogy tracking. Each shipped device carries complete traceability data.
+List views for sales orders and outbound shipments. Sales Order detail (including PR generation from SO) is handled in screen 61. Shipment detail includes genealogy tracking per RQ-021.
 
 ## Workflows
-WF-11 (Sales Outbound Traceability)
+- WF-11 (Sales Outbound Traceability)
+- WF-15 (Sales-Driven Procurement Planning) — via Order Detail
 
 ## Requirements
-RQ-021 (component version + batch traceability on shipment)
+- RQ-021 (component version + batch traceability on shipment)
 
 ## Sales Order List
 
@@ -29,39 +30,9 @@ RQ-021 (component version + batch traceability on shipment)
 | Total Amount | Formatted with currency |
 | Order Date | Date |
 | Required Ship Date | Date, red if overdue |
-| Actions | View, Edit (draft), Create Shipment |
+| Actions | View, Edit (draft), Create Shipment, Generate PR |
 
-## Sales Order Detail
-
-### Header
-
-| Field | Type | Required |
-|---|---|---|
-| SO Number | Mono | Auto |
-| Status | Badge | Auto |
-| Customer | Searchable select | Yes |
-| Customer Contact | Text | Auto-filled |
-| Order Date | Date picker | Yes |
-| Required Ship Date | Date picker | Yes |
-| Shipping Address | Textarea | Yes |
-| Payment Terms | Select | No |
-| Notes | Textarea | No |
-
-### Order Lines
-
-| Field | Type | Required |
-|---|---|---|
-| Item | Searchable select | Yes (finished goods only) |
-| Revision | Select | Yes (released revisions) |
-| Quantity | Number | Yes |
-| Unit Price | Number + currency | Yes |
-| Line Total | Calculated | Auto |
-
-### Allocation Tab
-- For each order line, show available finished goods lots/serials
-- User selects specific lots/serials to allocate
-- Allocated qty vs ordered qty indicator
-- [Auto-Allocate] button: FIFO allocation from available stock
+> **Note:** Sales Order Detail with Material Requirements analysis, PR generation, and procurement links is documented in [61_sales-order-detail.md](61_sales-order-detail.md).
 
 ## Shipment List
 

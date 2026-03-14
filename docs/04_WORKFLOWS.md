@@ -6,7 +6,7 @@
 
 ## Canonical Process References
 
-The following 14 workflow IDs are defined in FULLPLAN.md Section 4:
+The following 15 workflow IDs are defined:
 
 | ID    | Summary |
 |-------|---------|
@@ -24,6 +24,7 @@ The following 14 workflow IDs are defined in FULLPLAN.md Section 4:
 | WF-12 | Safety stock alerting and periodic reminders |
 | WF-13 | Warehouse periodic checks (quarterly/yearly) |
 | WF-14 | Feishu and external finance integration |
+| WF-15 | Sales-driven procurement planning (forecast → BOM explosion → PR generation) |
 
 ### Operational Enhancements Retained from CLAUDE.md
 
@@ -242,3 +243,59 @@ The following operational enhancements from the CLAUDE.md source were retained a
 1. Approval and alert events push to Feishu via `integration_event` queue.
 2. Cost/AP/stock posting pushes to external finance or internal costing engine.
 3. Retry/error handling uses dead-letter status and support dashboard.
+
+---
+
+## WF-15 Sales-Driven Procurement Planning
+
+**Actors:** Sales Planner, Buyer, Procurement Manager
+
+**Purpose:** Generate purchase requisitions from sales demand via BOM explosion and net requirement calculation.
+
+**Flow:**
+
+1. **Sales Forecast Creation**
+   - Create forecast manually or import from Excel
+   - Define forecast period and line items (finished goods + quantities)
+   - Optionally adjust forecast lines in Excel and re-import
+
+2. **Accept Forecast**
+   - User accepts forecast to lock for processing
+   - Status changes from `draft` to `accepted`
+
+3. **BOM Explosion & Net Requirements**
+   - System explodes each finished good to component parts via BOM
+   - Calculate net requirement: `Required - On Hand - On Order (open PO remaining)`
+   - Consider partially received POs: `remaining_qty = order_qty - received_qty`
+
+4. **Supplier Grouping**
+   - Group components by preferred supplier (`supplier_item.is_preferred = true`)
+   - Components with single preferred supplier → ready for PR
+   - Components with multiple suppliers or no preferred supplier → flagged for manual resolution
+
+5. **PR Generation**
+   - Create one PR per supplier with all components for that supplier
+   - PR lines include: item, revision, net required qty, unit price estimate
+   - Link PR lines back to source SO/forecast via `source_so_id`, `source_forecast_id`
+
+6. **Multi-Supplier Resolution**
+   - User manually selects supplier for flagged components
+   - Options: select single vendor, split quantity, or skip
+
+7. **PR Approval**
+   - Generated PRs follow standard WF-01 approval flow
+   - Once approved, buyer proceeds with RFQ/PO
+
+**Data Links:**
+
+- `sales_order` → `sales_order_line` → BOM explosion → `pr_generation_log` → `purchase_requisition`
+- `sales_forecast` → `sales_forecast_line` → BOM explosion → `pr_generation_log` → `purchase_requisition`
+
+**Audit:** All PRs generated from SO/forecast must maintain traceable link. Source document reference stored in PR header and lines.
+
+**Key Rules:**
+
+1. Never auto-select when multiple suppliers exist — require human decision
+2. Partial PO remaining quantities must be deducted from net requirement
+3. "Make" items do not generate PRs — they generate work orders instead
+4. Forecast acceptance is irreversible without admin intervention

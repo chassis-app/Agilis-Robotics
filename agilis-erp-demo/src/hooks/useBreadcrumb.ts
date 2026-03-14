@@ -45,6 +45,7 @@ const segmentKeyMap: Record<string, string> = {
   'sales-orders': 'nav.sales_orders',
   finance: 'nav.finance',
   costing: 'nav.costing',
+  'payment-requests': 'nav.payment_requests',
   'ap-reconciliation': 'nav.ap_reconciliation',
   integration: 'nav.integration',
   reports: 'nav.reports',

@@ -131,6 +131,34 @@ export interface POLine {
   receivedQty: number;
 }
 
+export type PaymentMode = 'prepay' | 'cod' | 'monthly';
+
+export interface PaymentSchedule {
+  id: string;
+  label: string;
+  mode: PaymentMode;
+  trigger: string;
+  percentage?: number;
+  amount: number;
+  requestedAmount: number;
+  paidAmount: number;
+  approvalStatus?: DocumentStatus;
+  reapprovalRequired?: boolean;
+}
+
+export interface PaymentRequestLine {
+  id: string;
+  poId: string;
+  poNo: string;
+  scheduleId: string;
+  scheduleLabel: string;
+  mode: PaymentMode;
+  requestedAmount: number;
+  paidAmount: number;
+  outstandingAmount: number;
+  trigger: string;
+}
+
 export interface PurchaseOrder {
   id: string;
   poNo: string;
@@ -148,6 +176,24 @@ export interface PurchaseOrder {
   notes: string;
   createdAt: string;
   lines: POLine[];
+  paymentSchedules?: PaymentSchedule[];
+}
+
+export interface PaymentRequest {
+  id: string;
+  requestNo: string;
+  status: DocumentStatus;
+  supplierId: string;
+  supplierName: string;
+  supplierNameEn: string;
+  requesterName: string;
+  requesterNameEn: string;
+  createdAt: string;
+  totalAmount: number;
+  currency: string;
+  poCount: number;
+  reason: string;
+  lines: PaymentRequestLine[];
 }
 
 // ---------------------------------------------------------------------------

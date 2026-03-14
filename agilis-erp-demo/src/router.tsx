@@ -24,6 +24,9 @@ const NCCapa = lazy(() => import('@/pages/quality/NCCapa'))
 const SalesOrders = lazy(() => import('@/pages/sales/SalesOrders'))
 const Costing = lazy(() => import('@/pages/finance/Costing'))
 const IntegrationMonitor = lazy(() => import('@/pages/finance/IntegrationMonitor'))
+const PaymentRequestList = lazy(() => import('@/pages/finance/PaymentRequestList'))
+const PaymentRequestCreate = lazy(() => import('@/pages/finance/PaymentRequestCreate'))
+const PaymentRequestDetail = lazy(() => import('@/pages/finance/PaymentRequestDetail'))
 
 // Tier 3 screens (simplified)
 const RFQ = lazy(() => import('@/pages/procurement/RFQ'))
@@ -43,6 +46,11 @@ const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const ApprovalPolicies = lazy(() => import('@/pages/admin/ApprovalPolicies'))
 const CustomFields = lazy(() => import('@/pages/admin/CustomFields'))
 const SystemConfig = lazy(() => import('@/pages/admin/SystemConfig'))
+
+// Sales (new screens for WF-15)
+const SalesOrderDetail = lazy(() => import('@/pages/sales/SalesOrderDetail'))
+const SalesPlanning = lazy(() => import('@/pages/sales/SalesPlanning'))
+const SalesForecastList = lazy(() => import('@/pages/sales/SalesForecastList'))
 
 function Loading() {
   return (
@@ -98,9 +106,16 @@ export function AppRouter() {
 
           {/* Sales */}
           <Route path="/sales/orders" element={<SalesOrders />} />
+          <Route path="/sales/orders/:id" element={<SalesOrderDetail />} />
+          <Route path="/sales/planning" element={<SalesPlanning />} />
+          <Route path="/sales/planning/:id" element={<SalesPlanning />} />
+          <Route path="/sales/forecasts" element={<SalesForecastList />} />
 
           {/* Finance */}
           <Route path="/finance/costing" element={<Costing />} />
+          <Route path="/finance/payment-requests" element={<PaymentRequestList />} />
+          <Route path="/finance/payment-requests/new" element={<PaymentRequestCreate />} />
+          <Route path="/finance/payment-requests/:id" element={<PaymentRequestDetail />} />
           <Route path="/finance/ap-reconciliation" element={<APReconciliation />} />
           <Route path="/finance/integration-status" element={<IntegrationMonitor />} />
 

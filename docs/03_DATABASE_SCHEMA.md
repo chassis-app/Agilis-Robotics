@@ -66,7 +66,7 @@ Audit and traceability controls:
 30. `item_substitute` - item_id, revision_id, substitute_item_id, substitute_revision_id, priority, effective_from, effective_to, approval_required_flag
 31. `supplier` - supplier_code, name_zh, name_en, payment_terms, currency_code, status
 32. `supplier_site` - supplier_id FK, site_code, address, contact_name, contact_phone, email
-33. `supplier_item` - supplier_id, item_id, supplier_part_no, lead_time_days, moq, price, currency_code
+33. `supplier_item` - supplier_id, item_id, supplier_part_no, lead_time_days, moq, price, currency_code, is_preferred (boolean, true if this is the preferred supplier for this item)
 34. `customer` - customer_code, name_zh, name_en, status
 35. `warehouse` - site_id, warehouse_code, name, warehouse_type
 36. `warehouse_location` - warehouse_id, location_code, location_type (raw/wip/fg/quarantine/subcontract), pick_sequence
@@ -100,8 +100,8 @@ Audit and traceability controls:
 
 ## 5) Procurement Schema (Entities 52--63)
 
-52. `purchase_requisition` - pr_no, request_dept_id, requester_id, currency_code, required_date, status, priority, reason
-53. `purchase_requisition_line` - pr_id, line_no, item_id, revision_id, req_qty, uom, need_by_date, estimated_price, warehouse_id, project_id, risk_level_id
+52. `purchase_requisition` - pr_no, request_dept_id, requester_id, currency_code, required_date, status, priority, reason, source_type (manual/sales_order/sales_forecast), source_so_id, source_forecast_id
+53. `purchase_requisition_line` - pr_id, line_no, item_id, revision_id, req_qty, uom, need_by_date, estimated_price, warehouse_id, project_id, risk_level_id, source_so_line_id, source_forecast_line_id
 54. `supplier_rfq` - rfq_no, pr_id, issue_date, status
 55. `supplier_rfq_line` - rfq_id, line_no, pr_line_id, item_id, revision_id, qty, uom
 56. `supplier_quotation` - quotation_no, rfq_id, supplier_id, quote_date, currency_code, valid_until, status
@@ -181,7 +181,21 @@ Audit and traceability controls:
 
 ---
 
-## 10) Critical Constraints and Indexes
+## 10) Sales and Forecast Schema (Entities 110--118)
+
+110. `sales_order` - so_no, customer_id, order_date, required_ship_date, shipping_address, payment_terms, currency_code, total_amount, status (draft/confirmed/in_production/partially_shipped/shipped/closed), notes
+111. `sales_order_line` - so_id, line_no, item_id, revision_id, ordered_qty, uom, unit_price, line_total, allocated_qty, shortage_qty, production_status
+112. `sales_forecast` - forecast_no, period_start, period_end, description, status (draft/accepted/processed/closed), created_by, accepted_by, accepted_at
+113. `sales_forecast_line` - forecast_id, line_no, item_id, revision_id, forecast_qty, uom, unit_price, confidence_level (high/medium/low), notes
+114. `pr_generation_log` - log_id, pr_id, pr_line_id, source_type (sales_order/sales_forecast), source_so_id, source_so_line_id, source_forecast_id, source_forecast_line_id, generated_qty, generated_at, generated_by
+115. `bom_explosion_cache` - cache_id, source_type (sales_order/sales_forecast), source_id, source_line_id, component_item_id, component_revision_id, required_qty, on_hand_qty, on_order_qty, shortage_qty, preferred_supplier_id, resolution_status (pending/resolved/skipped)
+116. `material_requirement_line` - requirement_id, source_type, source_id, component_item_id, component_revision_id, gross_requirement, on_hand, on_order, wip_allocated, net_requirement, supplier_id, status (pending/pr_generated/po_placed/received)
+117. `po_remaining_balance` - po_line_id, ordered_qty, received_qty, remaining_qty, last_updated (calculated view for net requirement)
+118. `multi_supplier_resolution` - resolution_id, requirement_id, component_item_id, selected_supplier_id, allocated_qty, resolved_by, resolved_at, resolution_notes
+
+---
+
+## 11) Critical Constraints and Indexes
 
 ### Must-have constraints
 

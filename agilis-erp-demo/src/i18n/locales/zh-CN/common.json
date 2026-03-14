@@ -33,6 +33,7 @@
     "sales_orders": "销售订单",
     "finance": "财务管理",
     "costing": "成本核算",
+    "payment_requests": "付款申请",
     "ap_reconciliation": "应付对账",
     "integration": "集成监控",
     "reports": "报表中心",

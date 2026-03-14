@@ -10,7 +10,7 @@ Agilis-Robotics is a medical device manufacturing ERP system. The repository is 
 
 - **Architecture & planning**: Complete (docs 01–08)
 - **UI/UX design system**: Complete (`docs/design/09_UIUX_DESIGN.md`)
-- **Screen specifications**: Complete — 28 page prompts in `docs/design/pages/`
+- **Screen specifications**: Complete — 31 page prompts in `docs/design/pages/`
 - **UI mockups**: Complete — all 28 screens built in `docs/design/ui.pen` with 22 reusable components
 - **Application source code**: Not started
 
@@ -23,8 +23,8 @@ Agilis-Robotics is a medical device manufacturing ERP system. The repository is 
 | `docs/README.md` | Index linking all documents below |
 | `docs/01_REQUIREMENTS.md` | 27 requirement IDs (RQ-001–RQ-027), compliance baseline (EU MDR, ISO 13485, FDA 21 CFR) |
 | `docs/02_SYSTEM_DESIGN.md` | Architecture decisions, canonical data model, naming harmonization, NFRs, governance |
-| `docs/03_DATABASE_SCHEMA.md` | Complete 109-entity logical model with columns, constraints, and indexes |
-| `docs/04_WORKFLOWS.md` | 14 end-to-end workflow definitions (WF-01–WF-14) |
+| `docs/03_DATABASE_SCHEMA.md` | Complete 118-entity logical model with columns, constraints, and indexes |
+| `docs/04_WORKFLOWS.md` | 15 end-to-end workflow definitions (WF-01–WF-15) |
 | `docs/05_API_AND_REPORTING.md` | API surface, event bus topics, operational and compliance reports |
 | `docs/06_DEVELOPMENT_PLAN.md` | 52-week roadmap, 11 phases, build order, testing strategy, risks, open decisions |
 | `docs/07_DATA_DICTIONARY.md` | Bilingual Chinese/English canonical field master (389 fields) |
@@ -35,7 +35,7 @@ Agilis-Robotics is a medical device manufacturing ERP system. The repository is 
 | File | Content |
 |------|---------|
 | `docs/design/09_UIUX_DESIGN.md` | UI/UX design system: visual language, components, screen specs, interaction patterns, accessibility |
-| `docs/design/pages/README.md` | Index of all 28 screen prompts with route map and workflow/requirement coverage |
+| `docs/design/pages/README.md` | Index of all 31 screen prompts with route map and workflow/requirement coverage |
 | `docs/design/pages/*.md` | Individual screen specifications (layout, fields, interactions, workflow refs) |
 | `docs/design/ui.pen` | Pencil design file — 22 reusable components + 28 screen mockups (read only via Pencil MCP tools) |
 
@@ -104,8 +104,8 @@ All design decisions must account for full lot/serial traceability, immutable au
 ## Architecture Decisions (Canonical)
 
 - **Multi-tenant SaaS** with tenant → legal_entity → site hierarchy
-- **109 domain entities** across security, master data, PLM, procurement, inventory, production, quality, and sales
-- **14 canonical workflows** (`WF-01` through `WF-14`) — referenced by ID throughout
+- **118 domain entities** across security, master data, PLM, procurement, inventory, production, quality, sales, and forecasting
+- **15 canonical workflows** (`WF-01` through `WF-15`) — referenced by ID throughout
 - **27 requirements** (`RQ-001` through `RQ-027`) — all mandatory and traceable
 - **Bilingual support**: Chinese display labels + English `snake_case` canonical keys
 - **Global columns on all business tables**: `id` (UUID PK), `tenant_id`, `created_at`, `created_by`, `updated_at`, `updated_by`, `is_deleted`, `row_version`, `source_doc_type`, `source_doc_id`, `source_line_id`

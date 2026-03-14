@@ -10,14 +10,14 @@ import { toast } from '@/components/ui/Toast'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   CheckCircle2, XCircle, Clock, FileText, ClipboardList,
-  Factory, ShieldCheck, PenTool, MessageSquare
+  Factory, ShieldCheck, PenTool, CreditCard, RefreshCcw
 } from 'lucide-react'
 import type { DocumentStatus } from '@/types'
 
 interface ApprovalItem {
   id: string
   docNo: string
-  type: 'pr' | 'po' | 'wo' | 'insp'
+  type: 'pr' | 'po' | 'wo' | 'insp' | 'payment_request' | 'po_change'
   title: string
   titleEn: string
   requester: string
@@ -31,9 +31,10 @@ interface ApprovalItem {
 const approvalItems: ApprovalItem[] = [
   { id: '1', docNo: 'PR-2024-0003', type: 'pr', title: '钛合金轴采购申请', titleEn: 'Titanium Alloy Shaft PR', requester: '王芳', department: '工程部', date: '2024-12-15', amount: '¥45,000', status: 'in_approval', urgency: 'urgent' },
   { id: '2', docNo: 'PR-2024-0004', type: 'pr', title: '伺服电机模组采购', titleEn: 'Servo Motor Module PR', requester: '李明', department: '供应链', date: '2024-12-14', amount: '¥128,000', status: 'in_approval' },
-  { id: '3', docNo: 'PO-2024-0002', type: 'po', title: 'PCB控制板采购订单', titleEn: 'PCB Control Board PO', requester: '李明', department: '供应链', date: '2024-12-13', amount: '¥86,400', status: 'in_approval' },
-  { id: '4', docNo: 'PO-2024-0005', type: 'po', title: '轴承套件采购订单', titleEn: 'Bearing Set PO', requester: '李明', department: '供应链', date: '2024-12-12', amount: '¥12,000', status: 'in_approval' },
-  { id: '5', docNo: 'WO-2024-0003', type: 'wo', title: '不锈钢外壳生产审批', titleEn: 'Stainless Steel Housing WO', requester: '刘洋', department: '生产部', date: '2024-12-11', status: 'submitted' },
+  { id: '3', docNo: 'PAY-REQ-2025-0002', type: 'payment_request', title: '深圳伺服科技 付款申请', titleEn: 'Shenzhen Servo Tech Payment Request', requester: '陈雨', department: '财务部', date: '2025-01-09', amount: '¥62,000', status: 'in_approval' },
+  { id: '4', docNo: 'PO-2024-0002', type: 'po_change', title: '采购订单付款模式变更', titleEn: 'PO Payment Mode Change', requester: '李明', department: '供应链', date: '2025-01-08', amount: '¥128,000', status: 'in_approval', urgency: 'urgent' },
+  { id: '5', docNo: 'PO-2024-0005', type: 'po', title: '轴承套件采购订单', titleEn: 'Bearing Set PO', requester: '李明', department: '供应链', date: '2024-12-12', amount: '¥12,000', status: 'in_approval' },
+  { id: '6', docNo: 'WO-2024-0003', type: 'wo', title: '不锈钢外壳生产审批', titleEn: 'Stainless Steel Housing WO', requester: '刘洋', department: '生产部', date: '2024-12-11', status: 'submitted' },
 ]
 
 const typeIcons = {
@@ -41,6 +42,8 @@ const typeIcons = {
   po: ClipboardList,
   wo: Factory,
   insp: ShieldCheck,
+  payment_request: CreditCard,
+  po_change: RefreshCcw,
 }
 
 const typeColors = {
@@ -48,6 +51,8 @@ const typeColors = {
   po: 'bg-success-50 text-success-600',
   wo: 'bg-warning-50 text-warning-600',
   insp: 'bg-info-50 text-info-600',
+  payment_request: 'bg-primary-50 text-primary-600',
+  po_change: 'bg-warning-50 text-warning-700',
 }
 
 export default function ApprovalInbox() {
@@ -82,7 +87,9 @@ export default function ApprovalInbox() {
   const navigateToDoc = (item: ApprovalItem) => {
     if (item.type === 'pr') navigate(`/procurement/purchase-requisitions/${item.docNo}`)
     else if (item.type === 'po') navigate(`/procurement/purchase-orders/${item.docNo}`)
+    else if (item.type === 'po_change') navigate(`/procurement/purchase-orders/${item.docNo}`)
     else if (item.type === 'wo') navigate(`/manufacturing/work-orders/${item.docNo}`)
+    else if (item.type === 'payment_request') navigate('/finance/payment-requests/payreq-2')
   }
 
   return (
@@ -117,6 +124,16 @@ export default function ApprovalInbox() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-neutral-900 font-mono">{item.docNo}</span>
                       <StatusBadge status={item.status} locale={language} />
+                      {item.type === 'payment_request' && (
+                        <span className="px-1.5 py-0.5 text-xs font-medium bg-primary-50 text-primary-700 rounded">
+                          {language === 'zh-CN' ? '付款申请' : 'Payment Request'}
+                        </span>
+                      )}
+                      {item.type === 'po_change' && (
+                        <span className="px-1.5 py-0.5 text-xs font-medium bg-warning-50 text-warning-700 rounded">
+                          {language === 'zh-CN' ? '付款模式变更' : 'Payment Mode Change'}
+                        </span>
+                      )}
                       {item.urgency === 'urgent' && (
                         <span className="px-1.5 py-0.5 text-xs font-medium bg-danger-50 text-danger-600 rounded">
                           {language === 'zh-CN' ? '紧急' : 'Urgent'}

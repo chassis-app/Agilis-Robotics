@@ -216,6 +216,20 @@ export const navigation: NavSection[] = [
         icon: 'ShoppingCart',
         path: '/sales/orders',
       },
+      {
+        id: 'sales-planning',
+        label: '销售计划',
+        labelEn: 'Sales Planning',
+        icon: 'Calendar',
+        path: '/sales/planning',
+      },
+      {
+        id: 'sales-forecasts',
+        label: '销售预测',
+        labelEn: 'Forecasts',
+        icon: 'TrendingUp',
+        path: '/sales/forecasts',
+      },
     ],
   },
   {
@@ -229,6 +243,13 @@ export const navigation: NavSection[] = [
         labelEn: 'Costing',
         icon: 'Calculator',
         path: '/finance/costing',
+      },
+      {
+        id: 'payment-requests',
+        label: '付款申请',
+        labelEn: 'Payment Requests',
+        icon: 'CreditCard',
+        path: '/finance/payment-requests',
       },
       {
         id: 'ap-reconciliation',

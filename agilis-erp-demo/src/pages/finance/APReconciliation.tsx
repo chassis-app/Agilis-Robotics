@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAuthStore } from '@/store/useAuthStore'
 import { cn } from '@/lib/utils'
-import { Download, Search } from 'lucide-react'
+import { CreditCard, Download, Search } from 'lucide-react'
 
 type ReconciliationStatus = 'matched' | 'variance' | 'pending' | 'overdue'
 
@@ -38,6 +39,7 @@ const statusConfig: Record<ReconciliationStatus, { bg: string; text: string; dot
 }
 
 export default function APReconciliation() {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { language } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
@@ -54,10 +56,16 @@ export default function APReconciliation() {
         <h1 className="text-2xl font-semibold text-neutral-900">
           {language === 'zh-CN' ? '应付对账' : 'AP Reconciliation'}
         </h1>
-        <Button variant="secondary" size="sm">
-          <Download className="h-4 w-4" />
-          {t('common.export')}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={() => navigate('/finance/payment-requests')}>
+            <CreditCard className="h-4 w-4" />
+            {language === 'zh-CN' ? '查看付款申请' : 'View Payment Requests'}
+          </Button>
+          <Button variant="secondary" size="sm">
+            <Download className="h-4 w-4" />
+            {t('common.export')}
+          </Button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
