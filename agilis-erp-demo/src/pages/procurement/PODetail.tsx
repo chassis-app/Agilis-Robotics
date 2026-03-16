@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -75,7 +75,6 @@ const poData = {
 }
 
 export default function PODetail() {
-  const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { language } = useAuthStore()

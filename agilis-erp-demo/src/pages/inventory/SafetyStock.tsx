@@ -67,7 +67,7 @@ export default function SafetyStock() {
     }))
   }, [safetyStockAlert.criticalThresholdPctBelowSafety])
 
-  const filtered = useMemo(() => {
+  const filtered = (() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q) return rows
 
@@ -77,7 +77,7 @@ export default function SafetyStock() {
       || row.itemName.toLowerCase().includes(q)
       || row.itemNameEn.toLowerCase().includes(q)
     ))
-  }, [rows, searchQuery, versionsByPart])
+  })()
 
   const criticalCount = rows.filter(r => r.level === 'critical').length
   const lowCount = rows.filter(r => r.level === 'low').length

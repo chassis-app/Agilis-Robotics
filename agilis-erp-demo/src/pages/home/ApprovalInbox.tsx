@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
-import { toast } from '@/components/ui/Toast'
+import { toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   CheckCircle2, XCircle, Clock, FileText, ClipboardList,

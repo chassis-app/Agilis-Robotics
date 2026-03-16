@@ -31,14 +31,15 @@ const PaymentRequestDetail = lazy(() => import('@/pages/finance/PaymentRequestDe
 // Tier 3 screens (simplified)
 const RFQ = lazy(() => import('@/pages/procurement/RFQ'))
 const GoodsReceipt = lazy(() => import('@/pages/procurement/GoodsReceipt'))
+const GoodsReturn = lazy(() => import('@/pages/procurement/GoodsReturn'))
 const MIRBatch = lazy(() => import('@/pages/inventory/MIRBatch'))
 const StockTransfers = lazy(() => import('@/pages/inventory/StockTransfers'))
 const CycleCount = lazy(() => import('@/pages/inventory/CycleCount'))
 const SafetyStock = lazy(() => import('@/pages/inventory/SafetyStock'))
 const SubcontractOrder = lazy(() => import('@/pages/manufacturing/SubcontractOrder'))
 const ECRECO = lazy(() => import('@/pages/engineering/ECRECO'))
+const BOMComparison = lazy(() => import('@/pages/engineering/BOMComparison'))
 const Documents = lazy(() => import('@/pages/engineering/Documents'))
-const Projects = lazy(() => import('@/pages/engineering/Projects'))
 const ReportsOperational = lazy(() => import('@/pages/reports/ReportsOperational'))
 const ReportsCompliance = lazy(() => import('@/pages/reports/ReportsCompliance'))
 const APReconciliation = lazy(() => import('@/pages/finance/APReconciliation'))
@@ -51,6 +52,9 @@ const SystemConfig = lazy(() => import('@/pages/admin/SystemConfig'))
 const SalesOrderDetail = lazy(() => import('@/pages/sales/SalesOrderDetail'))
 const SalesPlanning = lazy(() => import('@/pages/sales/SalesPlanning'))
 const SalesForecastList = lazy(() => import('@/pages/sales/SalesForecastList'))
+const Complaints = lazy(() => import('@/pages/quality/Complaints'))
+const InternalQC = lazy(() => import('@/pages/quality/InternalQC'))
+const InternalQCTemplateEditor = lazy(() => import('@/pages/quality/InternalQCTemplateEditor'))
 
 function Loading() {
   return (
@@ -76,6 +80,7 @@ export function AppRouter() {
           <Route path="/procurement/purchase-orders/:id" element={<PODetail />} />
           <Route path="/procurement/rfq" element={<RFQ />} />
           <Route path="/procurement/goods-receipts" element={<GoodsReceipt />} />
+          <Route path="/procurement/goods-returns" element={<GoodsReturn />} />
 
           {/* Inventory */}
           <Route path="/inventory/stock" element={<StockOverview />} />
@@ -95,13 +100,16 @@ export function AppRouter() {
           <Route path="/engineering/items" element={<ItemMaster />} />
           <Route path="/engineering/items/:id" element={<ItemMaster />} />
           <Route path="/engineering/bom" element={<BOMDetail />} />
+          <Route path="/engineering/bom/comparison" element={<BOMComparison />} />
           <Route path="/engineering/ecr" element={<ECRECO />} />
           <Route path="/engineering/documents" element={<Documents />} />
-          <Route path="/engineering/projects" element={<Projects />} />
 
           {/* Quality */}
           <Route path="/quality/inspections" element={<Inspections />} />
+          <Route path="/quality/complaints" element={<Complaints />} />
           <Route path="/quality/nonconformance" element={<NCCapa />} />
+          <Route path="/quality/internal-qc" element={<InternalQC />} />
+          <Route path="/quality/internal-qc/templates" element={<InternalQCTemplateEditor />} />
           <Route path="/quality/traceability" element={<Traceability />} />
 
           {/* Sales */}

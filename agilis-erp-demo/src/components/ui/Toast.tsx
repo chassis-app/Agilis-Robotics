@@ -1,15 +1,11 @@
-import { useEffect, useState, useCallback, type ReactNode } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { registerToastHandler, toastDurations, type ToastPayload, type ToastType } from '@/components/ui/toast'
 
-type ToastType = 'success' | 'error' | 'warning' | 'info'
-
-interface Toast {
+interface Toast extends ToastPayload {
   id: string
-  type: ToastType
-  message: string
-  duration?: number
 }
 
 const icons: Record<ToastType, typeof CheckCircle2> = {
@@ -33,23 +29,10 @@ const iconStyles: Record<ToastType, string> = {
   info: 'text-info-500',
 }
 
-const durations: Record<ToastType, number> = {
-  success: 5000,
-  error: 0, // persistent
-  warning: 8000,
-  info: 5000,
-}
-
-let addToast: (toast: Omit<Toast, 'id'>) => void = () => {}
-
-export function toast(type: ToastType, message: string) {
-  addToast({ type, message, duration: durations[type] })
-}
-
 export function Toaster() {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const add = useCallback((t: Omit<Toast, 'id'>) => {
+  const add = useCallback((t: ToastPayload) => {
     const id = Math.random().toString(36).slice(2)
     setToasts((prev) => [...prev, { ...t, id }])
   }, [])
@@ -59,8 +42,7 @@ export function Toaster() {
   }, [])
 
   useEffect(() => {
-    addToast = add
-    return () => { addToast = () => {} }
+    return registerToastHandler(add)
   }, [add])
 
   return createPortal(
@@ -77,7 +59,7 @@ function ToastItem({ toast: t, onDismiss }: { toast: Toast; onDismiss: () => voi
   const Icon = icons[t.type]
 
   useEffect(() => {
-    const dur = t.duration ?? durations[t.type]
+    const dur = t.duration ?? toastDurations[t.type]
     if (dur > 0) {
       const timer = setTimeout(onDismiss, dur)
       return () => clearTimeout(timer)

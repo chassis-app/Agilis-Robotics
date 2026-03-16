@@ -13,41 +13,47 @@ export interface BreadcrumbSegment {
  */
 const segmentKeyMap: Record<string, string> = {
   '': 'common.home',
-  dashboard: 'nav.dashboard',
   approvals: 'nav.approvals',
   procurement: 'nav.procurement',
   'purchase-requisitions': 'nav.pr_list',
   'purchase-orders': 'nav.po_list',
   rfq: 'nav.rfq',
-  'goods-receipt': 'nav.goods_receipt',
+  'goods-receipts': 'nav.goods_receipt',
+  'goods-returns': 'nav.goods_return',
   inventory: 'nav.inventory',
-  'stock-overview': 'nav.stock_overview',
-  'material-issues': 'nav.material_issues',
-  'material-issue-requests': 'nav.mir_batch',
-  'stock-transfers': 'nav.stock_transfers',
-  'cycle-count': 'nav.cycle_count',
-  'safety-stock': 'nav.safety_stock',
+  stock: 'nav.stock_overview',
+  'material-issue-notices': 'nav.material_withdrawal_confirmation',
+  'material-issue-requests': 'nav.material_withdrawal_request',
+  transfers: 'nav.stock_transfers',
+  'cycle-counts': 'nav.cycle_count',
+  'safety-stock-alerts': 'nav.safety_stock',
   manufacturing: 'nav.manufacturing',
   'work-orders': 'nav.work_orders',
-  subcontract: 'nav.subcontract',
+  'subcontract-orders': 'nav.subcontract',
   'production-progress': 'nav.production_progress',
   engineering: 'nav.engineering',
-  'item-master': 'nav.item_master',
+  items: 'nav.item_master',
   bom: 'nav.bom',
+  comparison: 'nav.bom_comparison',
   'ecr-eco': 'nav.ecr_eco',
+  ecr: 'nav.ecr_eco',
   documents: 'nav.documents',
-  projects: 'nav.projects',
   quality: 'nav.quality',
   inspections: 'nav.inspections',
-  'nc-capa': 'nav.nc_capa',
+  complaints: 'nav.complaints',
+  nonconformance: 'nav.nc_capa',
+  'internal-qc': 'nav.internal_qc',
+  templates: 'nav.qc_templates',
   traceability: 'nav.traceability',
-  sales: 'nav.sales',
-  'sales-orders': 'nav.sales_orders',
+  sales: 'nav.order_management',
+  orders: 'nav.sales_orders',
+  planning: 'nav.sales_planning',
+  forecasts: 'nav.sales_forecasts',
   finance: 'nav.finance',
   costing: 'nav.costing',
   'payment-requests': 'nav.payment_requests',
   'ap-reconciliation': 'nav.ap_reconciliation',
-  integration: 'nav.integration',
+  'integration-status': 'nav.integration',
   reports: 'nav.reports',
   operational: 'nav.operational',
   compliance: 'nav.compliance',
@@ -75,7 +81,11 @@ export function useBreadcrumb(): BreadcrumbSegment[] {
       accumulated += `/${part}`
 
       // Skip dynamic segments (UUIDs or purely numeric IDs)
-      if (/^[0-9a-f-]{36}$/i.test(part) || /^\d+$/.test(part)) {
+      if (
+        /^[0-9a-f-]{36}$/i.test(part) ||
+        /^\d+$/.test(part) ||
+        /^[A-Z]{1,5}-\d{4}-[\w-]+$/i.test(part)
+      ) {
         continue
       }
 

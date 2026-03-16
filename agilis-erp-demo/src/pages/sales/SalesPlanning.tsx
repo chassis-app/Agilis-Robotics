@@ -1,16 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { Tabs, TabPanel } from '@/components/ui/Tabs'
+import { Tabs } from '@/components/ui/Tabs'
 import { Modal } from '@/components/ui/Modal'
-import { Select } from '@/components/ui/Select'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   Plus, Upload, Download, CheckCircle2, AlertTriangle, ChevronRight,
-  ChevronDown, ChevronUp, FileSpreadsheet, RefreshCw, X, ChevronLeft
+  ChevronDown, ChevronUp, FileSpreadsheet, RefreshCw, ChevronLeft
 } from 'lucide-react'
 import type { DocumentStatus } from '@/types'
 
@@ -134,8 +132,6 @@ const quarterOptions = [
   { value: '2024-Q4', label: '2024 Q4' },
 ]
 
-const forecastData = forecastByQuarter['2024-Q2']
-
 const bomExplosion: BOMExpanded[] = [
   {
     itemNo: 'FG-001', itemName: '手术机器人手臂组件', itemNameEn: 'Surgical Robot Arm Assembly', revision: 'C', forecastQty: 100,
@@ -176,7 +172,6 @@ const statusMap: Record<ForecastStatus, DocumentStatus> = {
 }
 
 export default function SalesPlanning() {
-  const navigate = useNavigate()
   const { t } = useTranslation()
   const { language } = useAuthStore()
   const [activeTab, setActiveTab] = useState('lines')

@@ -70,6 +70,9 @@ export function DataTable<T>({
     return [selectColumn, ...columns]
   }, [columns, selectable])
 
+  // TanStack Table's core hook is intentionally used here; the React Compiler warning
+  // is about the library API shape rather than unsafe usage in this component.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns: allColumns,

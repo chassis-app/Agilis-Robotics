@@ -3,7 +3,6 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { useLayoutStore } from '@/store/useLayoutStore'
 import { Bell, Search, Menu, Globe } from 'lucide-react'
 import { DropdownMenu } from '@/components/ui/DropdownMenu'
-import { cn } from '@/lib/utils'
 
 export function TopBar() {
   const { t, i18n } = useTranslation()

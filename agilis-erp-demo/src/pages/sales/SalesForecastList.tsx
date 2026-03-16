@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   Plus, Upload, Download, Search, AlertTriangle, TrendingUp, FileText, Package
 } from 'lucide-react'
-import type { DocumentStatus } from '@/types'
 
 type ForecastStatus = 'draft' | 'accepted' | 'processed' | 'closed'
 
@@ -33,15 +30,7 @@ const mockForecasts: ForecastRow[] = [
   { id: '4', forecastNo: 'FC-2024-018', period: '2025 Q1', description: '一季度销售预测', status: 'accepted', totalQty: 60, estRevenue: 18000000, prCount: 1, hasShortage: true, createdAt: '2024-12-20', createdBy: '张伟' },
 ]
 
-const statusMap: Record<ForecastStatus, DocumentStatus> = {
-  draft: 'draft',
-  accepted: 'approved',
-  processed: 'approved',
-  closed: 'approved',
-}
-
 export default function SalesForecastList() {
-  const { t } = useTranslation()
   const { language } = useAuthStore()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')

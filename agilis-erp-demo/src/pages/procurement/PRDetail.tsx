@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { Tabs, TabPanel } from '@/components/ui/Tabs'
+import { Tabs } from '@/components/ui/Tabs'
 import { useAuthStore } from '@/store/useAuthStore'
 import {
   ArrowLeft, Pencil, Send, CheckCircle2, XCircle,
-  Clock, FileText, History, PenTool, Paperclip
+  Clock, FileText, PenTool, Paperclip
 } from 'lucide-react'
 import type { DocumentStatus, ApprovalStep, AuditEntry } from '@/types'
 
@@ -47,7 +47,6 @@ const auditEntries: AuditEntry[] = [
 ]
 
 export default function PRDetail() {
-  const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { language } = useAuthStore()

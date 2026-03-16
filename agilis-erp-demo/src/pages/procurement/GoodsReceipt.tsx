@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Plus, Download, Search, Eye } from 'lucide-react'
+import { ClipboardCheck, Download, Plus, Search, Undo2 } from 'lucide-react'
 import type { DocumentStatus } from '@/types'
 
-interface GRNRow {
+interface GrnRow {
   id: string
   grnNo: string
   status: DocumentStatus
@@ -17,34 +18,71 @@ interface GRNRow {
   receivedDate: string
   warehouse: string
   warehouseEn: string
-  items: number
+  itemCheckReport: 'ready' | 'pending'
+  taxInvoice: 'uploaded' | 'pending'
+  goodsReturn: string
 }
 
-const mockGRNs: GRNRow[] = [
-  { id: '1', grnNo: 'GRN-2024-0001', status: 'approved', poNo: 'PO-2024-0001', supplier: '苏州精密机械', supplierEn: 'Suzhou Precision Machinery', receivedDate: '2024-12-10', warehouse: '主仓库', warehouseEn: 'Main Warehouse', items: 3 },
-  { id: '2', grnNo: 'GRN-2024-0002', status: 'approved', poNo: 'PO-2024-0002', supplier: '上海伺服科技', supplierEn: 'Shanghai Servo Tech', receivedDate: '2024-12-12', warehouse: '主仓库', warehouseEn: 'Main Warehouse', items: 2 },
-  { id: '3', grnNo: 'GRN-2024-0003', status: 'in_approval', poNo: 'PO-2024-0003', supplier: '深圳电子元件', supplierEn: 'Shenzhen Electronics', receivedDate: '2024-12-15', warehouse: '电子仓', warehouseEn: 'Electronics WH', items: 5 },
-  { id: '4', grnNo: 'GRN-2024-0004', status: 'submitted', poNo: 'PO-2024-0005', supplier: '杭州轴承工业', supplierEn: 'Hangzhou Bearing Industrial', receivedDate: '2024-12-16', warehouse: '主仓库', warehouseEn: 'Main Warehouse', items: 1 },
-  { id: '5', grnNo: 'GRN-2024-0005', status: 'draft', poNo: 'PO-2024-0006', supplier: '北京钛合金材料', supplierEn: 'Beijing Titanium Materials', receivedDate: '2024-12-18', warehouse: '原料仓', warehouseEn: 'Raw Materials WH', items: 4 },
+const grns: GrnRow[] = [
+  {
+    id: '1',
+    grnNo: 'GRN-F-2026-0019',
+    status: 'approved',
+    poNo: 'PO-F-2026-0021',
+    supplier: '苏州精密零件有限公司',
+    supplierEn: 'Suzhou Precision Parts',
+    receivedDate: '2026-03-10',
+    warehouse: '机加仓',
+    warehouseEn: 'Machining Warehouse',
+    itemCheckReport: 'ready',
+    taxInvoice: 'pending',
+    goodsReturn: 'GRT-F-2026-0007',
+  },
+  {
+    id: '2',
+    grnNo: 'GRN-F-2026-0023',
+    status: 'approved',
+    poNo: 'PO-F-2026-0028',
+    supplier: '深圳创新电子',
+    supplierEn: 'Shenzhen Innovation Electronics',
+    receivedDate: '2026-03-12',
+    warehouse: '电子仓',
+    warehouseEn: 'Electronics Warehouse',
+    itemCheckReport: 'ready',
+    taxInvoice: 'uploaded',
+    goodsReturn: '-',
+  },
 ]
 
 export default function GoodsReceipt() {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { language } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filtered = mockGRNs.filter(r => {
-    if (!searchQuery) return true
-    const q = searchQuery.toLowerCase()
-    return r.grnNo.toLowerCase().includes(q) || r.poNo.toLowerCase().includes(q) || r.supplier.toLowerCase().includes(q)
-  })
+  const filtered = useMemo(() => {
+    if (!searchQuery) return grns
+    const query = searchQuery.toLowerCase()
+    return grns.filter((row) =>
+      row.grnNo.toLowerCase().includes(query) ||
+      row.poNo.toLowerCase().includes(query) ||
+      row.supplier.toLowerCase().includes(query),
+    )
+  }, [searchQuery])
 
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-neutral-900">
-          {language === 'zh-CN' ? '收货管理' : 'Goods Receipts'}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">
+            {language === 'zh-CN' ? '收货管理' : 'Goods Receipts'}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {language === 'zh-CN'
+              ? '收货后直接跟踪检查报告、税票状态以及供应商退货动作'
+              : 'GRN cockpit for item check report follow-up, tax invoice tracking, and supplier return actions.'}
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm">
             <Download className="h-4 w-4" />
@@ -58,13 +96,13 @@ export default function GoodsReceipt() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={language === 'zh-CN' ? '搜索收货单号、采购单号...' : 'Search GRN no., PO no...'}
-          className="w-full h-9 pl-9 pr-3 rounded-md border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={language === 'zh-CN' ? '搜索收货单号、采购单号、供应商...' : 'Search GRN, PO, supplier...'}
+          className="h-9 w-full rounded-md border border-neutral-300 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
 
@@ -73,50 +111,49 @@ export default function GoodsReceipt() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '收货单号' : 'GRN No'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">GRN</th>
                 <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.status')}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '采购单号' : 'PO No'}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '供应商' : 'Supplier'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">PO</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.supplier')}</th>
                 <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '收货日期' : 'Received Date'}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '仓库' : 'Warehouse'}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-center">{language === 'zh-CN' ? '物料数' : 'Items'}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-center">{language === 'zh-CN' ? '操作' : 'Actions'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.warehouse')}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '检查报告' : 'Item Check Report'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '税票' : 'Tax Invoice'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '退货单' : 'Goods Return'}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(row => (
-                <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-                  <td className="px-3 py-2">
-                    <span className="text-sm font-medium text-primary-600 font-mono">{row.grnNo}</span>
-                  </td>
+              {filtered.map((row) => (
+                <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+                  <td className="px-3 py-2 text-sm font-mono font-medium text-primary-600">{row.grnNo}</td>
                   <td className="px-3 py-2">
                     <StatusBadge status={row.status} locale={language} />
                   </td>
+                  <td className="px-3 py-2 text-sm font-mono text-neutral-600">{row.poNo}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{language === 'zh-CN' ? row.supplier : row.supplierEn}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-600">{row.receivedDate}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-600">{language === 'zh-CN' ? row.warehouse : row.warehouseEn}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">
+                      <ClipboardCheck className="h-3 w-3" />
+                      {row.itemCheckReport === 'ready' ? (language === 'zh-CN' ? '已完成' : 'Ready') : (language === 'zh-CN' ? '待补' : 'Pending')}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{row.taxInvoice === 'uploaded' ? (language === 'zh-CN' ? '已上传' : 'Uploaded') : (language === 'zh-CN' ? '待收' : 'Pending')}</td>
                   <td className="px-3 py-2">
-                    <span className="text-sm text-primary-600 font-mono">{row.poNo}</span>
-                  </td>
-                  <td className="px-3 py-2 text-sm text-neutral-700">
-                    {language === 'zh-CN' ? row.supplier : row.supplierEn}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-neutral-500">{row.receivedDate}</td>
-                  <td className="px-3 py-2 text-sm text-neutral-700">
-                    {language === 'zh-CN' ? row.warehouse : row.warehouseEn}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-neutral-700 text-center">{row.items}</td>
-                  <td className="px-3 py-2 text-center">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-primary-600"
+                      onClick={() => navigate('/procurement/goods-returns')}
+                    >
+                      <Undo2 className="h-3.5 w-3.5" />
+                      {row.goodsReturn}
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="flex items-center justify-between px-3 py-3 border-t border-neutral-200">
-          <span className="text-sm text-neutral-500">
-            {t('common.total_records', { count: filtered.length })}
-          </span>
         </div>
       </Card>
     </div>

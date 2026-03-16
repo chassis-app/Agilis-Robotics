@@ -38,6 +38,14 @@ const statusTabs: { id: string; key: DocumentStatus | 'all' }[] = [
   { id: 'approved', key: 'approved' },
 ]
 
+function renderSortIndicator(field: string, sortField: string, sortDir: 'asc' | 'desc') {
+  return (
+    <span className="text-neutral-400 ml-1">
+      {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+    </span>
+  )
+}
+
 export default function POList() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -83,12 +91,6 @@ export default function POList() {
       setSortDir('asc')
     }
   }
-
-  const SortIcon = ({ field }: { field: string }) => (
-    <span className="text-neutral-400 ml-1">
-      {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
-  )
 
   const formatAmount = (amount: number) =>
     new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(amount)
@@ -170,21 +172,21 @@ export default function POList() {
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50">
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('poNo')}>
-                    {t('po.po_no')}<SortIcon field="poNo" />
+                    {t('po.po_no')}{renderSortIndicator('poNo', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.status')}</th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('supplierName')}>
-                    {t('common.supplier')}<SortIcon field="supplierName" />
+                    {t('common.supplier')}{renderSortIndicator('supplierName', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('po.buyer')}</th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('deliveryDate')}>
-                    {t('po.delivery_date')}<SortIcon field="deliveryDate" />
+                    {t('po.delivery_date')}{renderSortIndicator('deliveryDate', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right cursor-pointer" onClick={() => handleSort('totalAmount')}>
-                    {t('common.amount')}<SortIcon field="totalAmount" />
+                    {t('common.amount')}{renderSortIndicator('totalAmount', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('createdAt')}>
-                    {t('common.created_at')}<SortIcon field="createdAt" />
+                    {t('common.created_at')}{renderSortIndicator('createdAt', sortField, sortDir)}
                   </th>
                 </tr>
               </thead>

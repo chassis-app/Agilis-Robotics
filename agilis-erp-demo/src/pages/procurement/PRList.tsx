@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -44,6 +43,14 @@ const statusTabs: { id: string; key: DocumentStatus | 'all' }[] = [
   { id: 'cancelled', key: 'cancelled' },
 ]
 
+function renderSortIndicator(field: string, sortField: string, sortDir: 'asc' | 'desc') {
+  return (
+    <span className="text-neutral-400 ml-1">
+      {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+    </span>
+  )
+}
+
 export default function PRList() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -53,8 +60,6 @@ export default function PRList() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [sortField, setSortField] = useState<string>('createdAt')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [page, setPage] = useState(1)
-  const pageSize = 20
 
   const filtered = useMemo(() => {
     let result = mockPRs
@@ -68,13 +73,12 @@ export default function PRList() {
         pr.requester.toLowerCase().includes(q)
       )
     }
-    result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       const aVal = a[sortField as keyof PRRow] ?? ''
       const bVal = b[sortField as keyof PRRow] ?? ''
       const cmp = String(aVal).localeCompare(String(bVal))
       return sortDir === 'asc' ? cmp : -cmp
     })
-    return result
   }, [activeStatus, searchQuery, sortField, sortDir])
 
   const statusCounts = useMemo(() => {
@@ -109,12 +113,6 @@ export default function PRList() {
     }
   }
 
-  const SortIcon = ({ field }: { field: string }) => (
-    <span className="text-neutral-400 ml-1">
-      {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
-  )
-
   return (
     <div className="p-6 space-y-4">
       {/* Header */}
@@ -137,7 +135,7 @@ export default function PRList() {
         {statusTabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => { setActiveStatus(tab.key); setPage(1) }}
+            onClick={() => setActiveStatus(tab.key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${
               activeStatus === tab.key
                 ? 'border-primary-600 text-primary-600'
@@ -202,22 +200,22 @@ export default function PRList() {
                     />
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('prNo')}>
-                    {t('pr.pr_no')}<SortIcon field="prNo" />
+                    {t('pr.pr_no')}{renderSortIndicator('prNo', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.status')}</th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('requester')}>
-                    {t('common.requester')}<SortIcon field="requester" />
+                    {t('common.requester')}{renderSortIndicator('requester', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.department')}</th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.priority')}</th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('requiredDate')}>
-                    {t('common.required_date')}<SortIcon field="requiredDate" />
+                    {t('common.required_date')}{renderSortIndicator('requiredDate', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right cursor-pointer" onClick={() => handleSort('totalAmount')}>
-                    {t('pr.total_amount')}<SortIcon field="totalAmount" />
+                    {t('pr.total_amount')}{renderSortIndicator('totalAmount', sortField, sortDir)}
                   </th>
                   <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('createdAt')}>
-                    {t('common.created_at')}<SortIcon field="createdAt" />
+                    {t('common.created_at')}{renderSortIndicator('createdAt', sortField, sortDir)}
                   </th>
                 </tr>
               </thead>

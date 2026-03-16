@@ -1,220 +1,184 @@
-import { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Card } from '@/components/ui/Card'
-import { ProgressBar } from '@/components/ui/ProgressBar'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowUpDown, Plus, ScissorsLineDashed, Search } from 'lucide-react'
 import type { DocumentStatus } from '@/types'
 
-interface WORow {
+interface BuildOrderRow {
   id: string
-  woNo: string
+  buildOrderNo: string
   status: DocumentStatus
-  itemName: string
-  itemNameEn: string
-  quantity: number
+  sequenceFamily: 'formal' | 'informal'
+  sourceOrderType: 'sales' | 'internal'
+  market: string
+  product: string
+  productEn: string
+  qty: number
   completedQty: number
-  startDate: string
+  batches: number
+  priorityRank: number
   dueDate: string
 }
 
-const mockWOs: WORow[] = [
-  { id: '1', woNo: 'WO-2024-0001', status: 'approved', itemName: '手术臂关节模组', itemNameEn: 'Surgical Arm Joint Module', quantity: 50, completedQty: 48, startDate: '2024-11-15', dueDate: '2024-12-20' },
-  { id: '2', woNo: 'WO-2024-0002', status: 'approved', itemName: '末端执行器组件', itemNameEn: 'End Effector Assembly', quantity: 30, completedQty: 22, startDate: '2024-11-20', dueDate: '2024-12-25' },
-  { id: '3', woNo: 'WO-2024-0003', status: 'in_approval', itemName: '控制电路板', itemNameEn: 'Control Circuit Board', quantity: 100, completedQty: 0, startDate: '2024-12-10', dueDate: '2025-01-15' },
-  { id: '4', woNo: 'WO-2024-0004', status: 'submitted', itemName: '传感器模组', itemNameEn: 'Sensor Module', quantity: 80, completedQty: 0, startDate: '2024-12-15', dueDate: '2025-01-20' },
-  { id: '5', woNo: 'WO-2024-0005', status: 'draft', itemName: '主体框架', itemNameEn: 'Main Frame Structure', quantity: 20, completedQty: 0, startDate: '2025-01-05', dueDate: '2025-02-10' },
-]
-
-const statusTabs: { id: string; key: DocumentStatus | 'all' }[] = [
-  { id: 'all', key: 'all' },
-  { id: 'draft', key: 'draft' },
-  { id: 'submitted', key: 'submitted' },
-  { id: 'in_approval', key: 'in_approval' },
-  { id: 'approved', key: 'approved' },
+const buildOrders: BuildOrderRow[] = [
+  {
+    id: '1',
+    buildOrderNo: 'BO-F-2026-0012',
+    status: 'approved',
+    sequenceFamily: 'formal',
+    sourceOrderType: 'sales',
+    market: 'EU',
+    product: '手术机器人整机',
+    productEn: 'Final Assembly Unit',
+    qty: 5,
+    completedQty: 2,
+    batches: 2,
+    priorityRank: 1,
+    dueDate: '2026-03-25',
+  },
+  {
+    id: '2',
+    buildOrderNo: 'BO-I-2026-0009',
+    status: 'in_approval',
+    sequenceFamily: 'informal',
+    sourceOrderType: 'sales',
+    market: 'US',
+    product: '末端执行器套件',
+    productEn: 'End Effector Kit',
+    qty: 12,
+    completedQty: 0,
+    batches: 3,
+    priorityRank: 2,
+    dueDate: '2026-03-28',
+  },
+  {
+    id: '3',
+    buildOrderNo: 'BO-I-2026-0014',
+    status: 'draft',
+    sequenceFamily: 'informal',
+    sourceOrderType: 'internal',
+    market: 'CN',
+    product: '控制系统半成品',
+    productEn: 'Control System Semi Product',
+    qty: 8,
+    completedQty: 0,
+    batches: 1,
+    priorityRank: 3,
+    dueDate: '2026-03-30',
+  },
 ]
 
 export default function WorkOrderList() {
-  const { t } = useTranslation()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { language } = useAuthStore()
-  const [activeStatus, setActiveStatus] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortField, setSortField] = useState<string>('dueDate')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const filtered = useMemo(() => {
-    let result = mockWOs
-    if (activeStatus !== 'all') {
-      result = result.filter(wo => wo.status === activeStatus)
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(wo =>
-        wo.woNo.toLowerCase().includes(q) ||
-        wo.itemName.toLowerCase().includes(q) ||
-        wo.itemNameEn.toLowerCase().includes(q)
-      )
-    }
-    result = [...result].sort((a, b) => {
-      const aVal = a[sortField as keyof WORow] ?? ''
-      const bVal = b[sortField as keyof WORow] ?? ''
-      const cmp = String(aVal).localeCompare(String(bVal))
-      return sortDir === 'asc' ? cmp : -cmp
-    })
-    return result
-  }, [activeStatus, searchQuery, sortField, sortDir])
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: mockWOs.length }
-    mockWOs.forEach(wo => { counts[wo.status] = (counts[wo.status] || 0) + 1 })
-    return counts
-  }, [])
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDir('asc')
-    }
-  }
-
-  const SortIcon = ({ field }: { field: string }) => (
-    <span className="text-neutral-400 ml-1">
-      {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
-  )
-
-  const getProgressColor = (pct: number): 'success' | 'warning' | 'primary' | 'danger' => {
-    if (pct >= 100) return 'success'
-    if (pct >= 50) return 'primary'
-    if (pct > 0) return 'warning'
-    return 'danger'
-  }
+    if (!searchQuery) return buildOrders
+    const query = searchQuery.toLowerCase()
+    return buildOrders.filter((row) =>
+      row.buildOrderNo.toLowerCase().includes(query) ||
+      row.product.toLowerCase().includes(query) ||
+      row.market.toLowerCase().includes(query),
+    )
+  }, [searchQuery])
 
   return (
     <div className="p-6 space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-neutral-900">
-          {language === 'zh-CN' ? '工单管理' : 'Work Orders'}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">
+            {language === 'zh-CN' ? 'Build Order 管理' : 'Build Orders'}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {language === 'zh-CN'
+              ? '按正式/非正式序列管理 Build Order，支持优先级拖拽和生产批次拆分'
+              : 'Build-order queue with formal/informal sequence control, priority reordering, and production-batch splits.'}
+          </p>
+        </div>
         <Button size="sm">
           <Plus className="h-4 w-4" />
-          {language === 'zh-CN' ? '新建工单' : 'New Work Order'}
+          {language === 'zh-CN' ? '新建 Build Order' : 'New Build Order'}
         </Button>
       </div>
 
-      {/* Status Tabs */}
-      <div className="flex border-b border-neutral-200 overflow-x-auto">
-        {statusTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveStatus(tab.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${
-              activeStatus === tab.key
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            {t(`status.${tab.key}`)}
-            <span className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
-              activeStatus === tab.key ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-neutral-500'
-            }`}>
-              {statusCounts[tab.key] || 0}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={language === 'zh-CN' ? '搜索工单号、产品名称...' : 'Search WO no., item name...'}
-            className="w-full h-9 pl-9 pr-3 rounded-md border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+      <Card className="bg-neutral-950 text-white">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-base font-semibold">{language === 'zh-CN' ? '排程说明' : 'Scheduling Rule'}</h3>
+            <p className="mt-1 text-sm text-white/70">
+              {language === 'zh-CN'
+                ? '优先级拖拽改变执行顺序，但不会改变批次编号与正式/非正式文档序列'
+                : 'Drag-and-drop changes execution priority without changing production-batch numbering or sequence family.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
+              <ArrowUpDown className="h-4 w-4" />
+              {language === 'zh-CN' ? '调整优先级' : 'Reorder Priority'}
+            </Button>
+            <Button variant="secondary" size="sm" className="border-white/20 bg-white/10 text-white hover:bg-white/20">
+              <ScissorsLineDashed className="h-4 w-4" />
+              {language === 'zh-CN' ? '拆分生产批次' : 'Split Batch'}
+            </Button>
+          </div>
         </div>
-        <Button variant="secondary" size="sm">
-          <SlidersHorizontal className="h-4 w-4" />
-          {language === 'zh-CN' ? '更多筛选' : 'More Filters'}
-        </Button>
+      </Card>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={language === 'zh-CN' ? '搜索 Build Order、产品、市场...' : 'Search build order, product, market...'}
+          className="h-9 w-full rounded-md border border-neutral-300 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
       </div>
 
-      {/* Table */}
       <Card padding="sm" className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('woNo')}>
-                  {t('manufacturing.wo_no')}<SortIcon field="woNo" />
-                </th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '优先级' : 'Priority'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? 'Build Order' : 'Build Order'}</th>
                 <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.status')}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('engineering.item_name')}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '来源' : 'Source'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '序列' : 'Sequence'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '市场' : 'Market'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.item')}</th>
                 <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{t('common.quantity')}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">
-                  {language === 'zh-CN' ? '已完成' : 'Completed'}
-                </th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 w-40">{t('manufacturing.progress')}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('startDate')}>
-                  {language === 'zh-CN' ? '开始日期' : 'Start Date'}<SortIcon field="startDate" />
-                </th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('dueDate')}>
-                  {language === 'zh-CN' ? '到期日期' : 'Due Date'}<SortIcon field="dueDate" />
-                </th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '已完成' : 'Completed'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '批次数' : 'Batches'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '交期' : 'Due Date'}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(wo => {
-                const pct = wo.quantity > 0 ? Math.round((wo.completedQty / wo.quantity) * 100) : 0
-                return (
-                  <tr
-                    key={wo.id}
-                    className="border-b border-neutral-100 hover:bg-neutral-50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/manufacturing/work-orders/${wo.woNo}`)}
-                  >
-                    <td className="px-3 py-2">
-                      <span className="text-sm font-medium text-primary-600 font-mono">{wo.woNo}</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <StatusBadge status={wo.status} locale={language} />
-                    </td>
-                    <td className="px-3 py-2 text-sm text-neutral-900">
-                      {language === 'zh-CN' ? wo.itemName : wo.itemNameEn}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-neutral-900 font-medium text-right">{wo.quantity}</td>
-                    <td className="px-3 py-2 text-sm text-neutral-700 text-right">{wo.completedQty}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <ProgressBar value={pct} color={getProgressColor(pct)} className="flex-1" />
-                        <span className="text-xs text-neutral-500 w-10 text-right">{pct}%</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-sm text-neutral-700">{wo.startDate}</td>
-                    <td className="px-3 py-2 text-sm text-neutral-700">{wo.dueDate}</td>
-                  </tr>
-                )
-              })}
+              {filtered.map((row) => (
+                <tr key={row.id} className="cursor-pointer border-b border-neutral-100 hover:bg-neutral-50" onClick={() => navigate(`/manufacturing/work-orders/${row.id}`)}>
+                  <td className="px-3 py-2 text-sm font-semibold text-neutral-700">#{row.priorityRank}</td>
+                  <td className="px-3 py-2 text-sm font-mono font-medium text-primary-600">{row.buildOrderNo}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge status={row.status} locale={language} />
+                  </td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{row.sourceOrderType === 'internal' ? (language === 'zh-CN' ? '内部订单' : 'Internal Order') : (language === 'zh-CN' ? '销售订单' : 'Sales Order')}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{row.sequenceFamily.toUpperCase()}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{row.market}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-800">{language === 'zh-CN' ? row.product : row.productEn}</td>
+                  <td className="px-3 py-2 text-right text-sm font-medium text-neutral-900">{row.qty}</td>
+                  <td className="px-3 py-2 text-right text-sm text-neutral-700">{row.completedQty}</td>
+                  <td className="px-3 py-2 text-right text-sm text-neutral-700">{row.batches}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-600">{row.dueDate}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-3 py-3 border-t border-neutral-200">
-          <span className="text-sm text-neutral-500">
-            {t('common.total_records', { count: filtered.length })}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-neutral-500">1 / 1</span>
-          </div>
         </div>
       </Card>
     </div>

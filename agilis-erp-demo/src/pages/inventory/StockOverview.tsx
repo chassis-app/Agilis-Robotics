@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react'
+import { useState, Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -27,7 +27,7 @@ export default function StockOverview() {
     return released || '01'
   }
 
-  const filtered = useMemo(() => {
+  const filtered = (() => {
     if (!searchQuery) return stockSummaries
     const q = searchQuery.toLowerCase()
     return stockSummaries.filter(
@@ -37,7 +37,7 @@ export default function StockOverview() {
         s.itemName.toLowerCase().includes(q) ||
         s.itemNameEn.toLowerCase().includes(q),
     )
-  }, [searchQuery, stockSummaries, versionsByPart])
+  })()
 
   const totalItems = stockSummaries.length
   const lowStockItems = stockSummaries.filter((s) => s.totalQty < s.safetyStock).length

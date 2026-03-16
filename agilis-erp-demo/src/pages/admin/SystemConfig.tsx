@@ -9,7 +9,7 @@ import {
   normalizeEmailList,
   resolveSafetyStockRecipientEmails,
 } from '@/lib/safety-stock-alerts'
-import { toast } from '@/components/ui/Toast'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import type { SafetyStockAlertConfig, User } from '@/types'
 import { Save, Building2, Bell, Link2, AlertTriangle, FlaskConical } from 'lucide-react'
@@ -264,6 +264,39 @@ export default function SystemConfig() {
         ))}
 
         <Card className="lg:col-span-2 xl:col-span-3">
+          <div className="mb-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-base font-semibold text-neutral-900">
+                  {language === 'zh-CN' ? '双序列文档规则' : 'Dual Sequence Rules'}
+                </h3>
+                <p className="mt-1 text-sm text-neutral-500">
+                  {language === 'zh-CN'
+                    ? '整个生产流程支持正式 / 非正式两套序列，从订单、采购、Build Order、領料/發料到质量文件统一生效'
+                    : 'Formal and informal numbering now spans the whole production flow across orders, procurement, build orders, withdrawal docs, and quality documents.'}
+                </p>
+              </div>
+              <Button variant="secondary" size="sm">
+                <Save className="h-4 w-4" />
+                {language === 'zh-CN' ? '保存序列规则' : 'Save Sequence Rules'}
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {[
+                { title: language === 'zh-CN' ? '正式序列前缀' : 'Formal Prefix', value: 'F' },
+                { title: language === 'zh-CN' ? '非正式序列前缀' : 'Informal Prefix', value: 'I' },
+                { title: language === 'zh-CN' ? '订单链生效范围' : 'Order Chain Scope', value: language === 'zh-CN' ? '全部生产流程' : 'Whole Production Flow' },
+                { title: language === 'zh-CN' ? '内部订单默认序列' : 'Internal Order Default', value: 'INFORMAL' },
+              ].map((item) => (
+                <div key={item.title} className="rounded-xl border border-neutral-200 bg-white p-4">
+                  <p className="text-xs text-neutral-500">{item.title}</p>
+                  <p className="mt-2 text-lg font-semibold text-neutral-900">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <div>
               <div className="flex items-center gap-2">

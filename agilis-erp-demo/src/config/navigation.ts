@@ -55,6 +55,13 @@ export const navigation: NavSection[] = [
         icon: 'PackageCheck',
         path: '/procurement/goods-receipts',
       },
+      {
+        id: 'goods-returns',
+        label: '退货单',
+        labelEn: 'Goods Return',
+        icon: 'Undo2',
+        path: '/procurement/goods-returns',
+      },
     ],
   },
   {
@@ -71,15 +78,15 @@ export const navigation: NavSection[] = [
       },
       {
         id: 'material-issue-notices',
-        label: '领料通知单',
-        labelEn: 'Material Issues',
+        label: '發料',
+        labelEn: 'Material Withdrawal Confirmation',
         icon: 'PackageMinus',
         path: '/inventory/material-issue-notices',
       },
       {
         id: 'material-issue-requests',
-        label: 'MIR 批量',
-        labelEn: 'MIR Batch',
+        label: '領料',
+        labelEn: 'Material Withdrawal Request',
         icon: 'PackageX',
         path: '/inventory/material-issue-requests',
       },
@@ -113,8 +120,8 @@ export const navigation: NavSection[] = [
     items: [
       {
         id: 'work-orders',
-        label: '工单',
-        labelEn: 'Work Orders',
+        label: '生产批工单',
+        labelEn: 'Build Orders',
         icon: 'Factory',
         path: '/manufacturing/work-orders',
       },
@@ -154,6 +161,13 @@ export const navigation: NavSection[] = [
         path: '/engineering/bom',
       },
       {
+        id: 'bom-comparison',
+        label: 'BOM 对比',
+        labelEn: 'BOM Comparison',
+        icon: 'GitCompareArrows',
+        path: '/engineering/bom/comparison',
+      },
+      {
         id: 'ecr-eco',
         label: '工程变更',
         labelEn: 'ECR/ECO',
@@ -166,13 +180,6 @@ export const navigation: NavSection[] = [
         labelEn: 'Documents',
         icon: 'FileBox',
         path: '/engineering/documents',
-      },
-      {
-        id: 'projects',
-        label: '项目管理',
-        labelEn: 'Projects',
-        icon: 'FolderKanban',
-        path: '/engineering/projects',
       },
     ],
   },
@@ -189,11 +196,25 @@ export const navigation: NavSection[] = [
         path: '/quality/inspections',
       },
       {
+        id: 'complaints',
+        label: '客诉',
+        labelEn: 'Complaints',
+        icon: 'MessageSquareWarning',
+        path: '/quality/complaints',
+      },
+      {
         id: 'nonconformance',
         label: 'NC/CAPA',
         labelEn: 'NC/CAPA',
         icon: 'AlertOctagon',
         path: '/quality/nonconformance',
+      },
+      {
+        id: 'internal-qc',
+        label: '内部检验',
+        labelEn: 'Internal QC',
+        icon: 'ClipboardCheck',
+        path: '/quality/internal-qc',
       },
       {
         id: 'traceability',
@@ -206,13 +227,13 @@ export const navigation: NavSection[] = [
   },
   {
     id: 'sales',
-    label: '销售',
-    labelEn: 'Sales',
+    label: '订单管理',
+    labelEn: 'Order Management',
     items: [
       {
         id: 'sales-orders',
-        label: '销售订单',
-        labelEn: 'Sales Orders',
+        label: '订单总览',
+        labelEn: 'Order Management',
         icon: 'ShoppingCart',
         path: '/sales/orders',
       },

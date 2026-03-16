@@ -32,5 +32,3 @@ export function StatusBadge({ status, locale = 'zh-CN', className }: StatusBadge
     </span>
   )
 }
-
-export { statusConfig }

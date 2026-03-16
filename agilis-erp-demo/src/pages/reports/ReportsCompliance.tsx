@@ -1,4 +1,3 @@
-import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -73,7 +72,6 @@ const reports: ReportCard[] = [
 ]
 
 export default function ReportsCompliance() {
-  const { t } = useTranslation()
   const { language } = useAuthStore()
 
   return (

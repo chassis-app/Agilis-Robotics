@@ -1,320 +1,169 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Card } from '@/components/ui/Card'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuthStore } from '@/store/useAuthStore'
-import { useEngineeringStore } from '@/store/useEngineeringStore'
-import { useInventoryStore, type FifoAllocationResult } from '@/store/useInventoryStore'
-import { formatItemNoWithRevision } from '@/lib/item-version'
-import { Plus, Search, PackageOpen, Wand2, Play, TriangleAlert } from 'lucide-react'
+import { CheckCheck, Download, PackageOpen, Search } from 'lucide-react'
 import type { DocumentStatus } from '@/types'
 
-interface MINRow {
+interface WithdrawalConfirmationRow {
   id: string
-  minNo: string
+  confirmationNo: string
   status: DocumentStatus
-  woNo: string
-  requesterName: string
-  requesterNameEn: string
-  requiredDate: string
-  itemsCount: number
+  requestNo: string
+  buildOrderNo: string
+  batchNo: string
+  warehouse: string
+  warehouseEn: string
+  lotTrace: string
+  confirmedBy: string
+  confirmedByEn: string
   createdAt: string
 }
 
-const mockMINs: MINRow[] = [
-  { id: '1', minNo: 'MIN-2024-0001', status: 'approved', woNo: 'WO-2024-0001', requesterName: '刘洋', requesterNameEn: 'Yang Liu', requiredDate: '2024-12-10', itemsCount: 5, createdAt: '2024-12-08' },
-  { id: '2', minNo: 'MIN-2024-0002', status: 'in_approval', woNo: 'WO-2024-0002', requesterName: '王芳', requesterNameEn: 'Fang Wang', requiredDate: '2024-12-15', itemsCount: 3, createdAt: '2024-12-12' },
-  { id: '3', minNo: 'MIN-2024-0003', status: 'draft', woNo: 'WO-2024-0003', requesterName: '刘洋', requesterNameEn: 'Yang Liu', requiredDate: '2024-12-20', itemsCount: 8, createdAt: '2024-12-14' },
+const confirmations: WithdrawalConfirmationRow[] = [
+  {
+    id: '1',
+    confirmationNo: 'MWC-I-2026-0008',
+    status: 'approved',
+    requestNo: 'MWR-I-2026-0015',
+    buildOrderNo: 'BO-F-2026-0012',
+    batchNo: 'PB-2026-0012-01',
+    warehouse: '机加仓',
+    warehouseEn: 'Machining Warehouse',
+    lotTrace: 'LOT-TI-001 / LOT-BRG-003',
+    confirmedBy: '陈刚',
+    confirmedByEn: 'Gang Chen',
+    createdAt: '2026-03-11',
+  },
+  {
+    id: '2',
+    confirmationNo: 'MWC-I-2026-0011',
+    status: 'submitted',
+    requestNo: 'MWR-I-2026-0018',
+    buildOrderNo: 'BO-F-2026-0012',
+    batchNo: 'PB-2026-0012-02',
+    warehouse: '电子仓',
+    warehouseEn: 'Electronics Warehouse',
+    lotTrace: 'LOT-PCB-004 / LOT-CHIP-011',
+    confirmedBy: '陈刚',
+    confirmedByEn: 'Gang Chen',
+    createdAt: '2026-03-13',
+  },
 ]
 
 export default function MaterialIssueNotice() {
   const { t } = useTranslation()
   const { language } = useAuthStore()
-  const stockSummaries = useInventoryStore((state) => state.stockSummaries)
-  const versionsByPart = useEngineeringStore((state) => state.versionsByPart)
-  const previewFifoAllocation = useInventoryStore((state) => state.previewFifoAllocation)
-  const issueByFifo = useInventoryStore((state) => state.issueByFifo)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortField, setSortField] = useState<string>('createdAt')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [selectedItemId, setSelectedItemId] = useState<string>(stockSummaries[0]?.itemId ?? '')
-  const [requestedQty, setRequestedQty] = useState<number>(1)
-  const [previewResult, setPreviewResult] = useState<FifoAllocationResult | null>(null)
-  const [issueResult, setIssueResult] = useState<FifoAllocationResult | null>(null)
-
-  useEffect(() => {
-    if (!selectedItemId && stockSummaries.length > 0) {
-      setSelectedItemId(stockSummaries[0].itemId)
-    }
-  }, [selectedItemId, stockSummaries])
 
   const filtered = useMemo(() => {
-    let result = mockMINs
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(min =>
-        min.minNo.toLowerCase().includes(q) ||
-        min.woNo.toLowerCase().includes(q) ||
-        min.requesterName.toLowerCase().includes(q)
-      )
-    }
-    result = [...result].sort((a, b) => {
-      const aVal = a[sortField as keyof MINRow] ?? ''
-      const bVal = b[sortField as keyof MINRow] ?? ''
-      const cmp = String(aVal).localeCompare(String(bVal))
-      return sortDir === 'asc' ? cmp : -cmp
-    })
-    return result
-  }, [searchQuery, sortField, sortDir])
-
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDir('asc')
-    }
-  }
-
-  const SortIcon = ({ field }: { field: string }) => (
-    <span className="text-neutral-400 ml-1">
-      {sortField === field ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
-  )
-
-  const selectedItem = useMemo(
-    () => stockSummaries.find((entry) => entry.itemId === selectedItemId) ?? null,
-    [selectedItemId, stockSummaries],
-  )
-
-  const handlePreview = () => {
-    if (!selectedItemId || requestedQty <= 0) return
-    const result = previewFifoAllocation(selectedItemId, requestedQty)
-    setPreviewResult(result)
-    setIssueResult(null)
-  }
-
-  const handleIssue = () => {
-    if (!selectedItemId || requestedQty <= 0) return
-    const result = issueByFifo(selectedItemId, requestedQty)
-    setIssueResult(result)
-    setPreviewResult(result)
-  }
-
-  const getRevision = (itemId: string) => {
-    return versionsByPart[itemId]?.find((entry) => entry.status === 'released')?.version ?? '01'
-  }
+    if (!searchQuery) return confirmations
+    const query = searchQuery.toLowerCase()
+    return confirmations.filter((row) =>
+      row.confirmationNo.toLowerCase().includes(query) ||
+      row.requestNo.toLowerCase().includes(query) ||
+      row.batchNo.toLowerCase().includes(query),
+    )
+  }, [searchQuery])
 
   return (
     <div className="p-6 space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900">
-            {language === 'zh-CN' ? '领料通知单' : 'Material Issue Notices'}
+            {language === 'zh-CN' ? '發料' : 'Material Withdrawal Confirmation'}
           </h1>
-          <p className="text-sm text-neutral-500 mt-1">
-            {language === 'zh-CN' ? '管理生产工单的物料领取通知' : 'Manage material issue notices for work orders'}
+          <p className="mt-1 text-sm text-neutral-500">
+            {language === 'zh-CN'
+              ? '依据已批准的領料单确认库存扣减，并记录批次追溯文件'
+              : 'Confirm inventory withdrawal against approved requests and preserve lot-level trace documents.'}
           </p>
         </div>
-        <Button size="sm">
-          <Plus className="h-4 w-4" />
-          {language === 'zh-CN' ? '新建领料通知' : 'New MIN'}
-        </Button>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={language === 'zh-CN' ? '搜索通知单号、工单号...' : 'Search MIN no., WO no...'}
-            className="w-full h-9 pl-9 pr-3 rounded-md border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm">
+            <Download className="h-4 w-4" />
+            {t('common.export')}
+          </Button>
+          <Button size="sm">
+            <CheckCheck className="h-4 w-4" />
+            {language === 'zh-CN' ? '确认發料' : 'Confirm Withdrawal'}
+          </Button>
         </div>
       </div>
 
-      {/* Table */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <p className="text-sm text-neutral-500">{language === 'zh-CN' ? '確認單數' : 'Confirmations'}</p>
+          <p className="mt-2 text-xl font-semibold text-neutral-900">{confirmations.length}</p>
+        </Card>
+        <Card>
+          <p className="text-sm text-neutral-500">{language === 'zh-CN' ? '已关联領料' : 'Linked Requests'}</p>
+          <p className="mt-2 text-xl font-semibold text-neutral-900">{confirmations.filter((row) => row.requestNo).length}</p>
+        </Card>
+        <Card>
+          <p className="text-sm text-neutral-500">{language === 'zh-CN' ? '批次追溯完整' : 'Lot Trace Ready'}</p>
+          <p className="mt-2 text-xl font-semibold text-neutral-900">{confirmations.filter((row) => row.lotTrace).length}</p>
+        </Card>
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={language === 'zh-CN' ? '搜索發料单、領料单、批次...' : 'Search confirmation, request, batch...'}
+          className="h-9 w-full rounded-md border border-neutral-300 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+
       <Card padding="sm" className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50">
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('minNo')}>
-                  {language === 'zh-CN' ? '通知单号' : 'MIN No.'}<SortIcon field="minNo" />
-                </th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '發料单号' : 'Confirmation No.'}</th>
                 <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.status')}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('woNo')}>
-                  {t('manufacturing.wo_no')}<SortIcon field="woNo" />
-                </th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.requester')}</th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('requiredDate')}>
-                  {t('common.required_date')}<SortIcon field="requiredDate" />
-                </th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">
-                  {language === 'zh-CN' ? '物料项数' : 'Items Count'}
-                </th>
-                <th className="px-3 py-2 text-xs font-medium text-neutral-500 cursor-pointer" onClick={() => handleSort('createdAt')}>
-                  {t('common.created_at')}<SortIcon field="createdAt" />
-                </th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '來源領料' : 'Source Request'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? 'Build Order' : 'Build Order'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '生产批次' : 'Batch'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{t('common.warehouse')}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '批次追溯' : 'Lot Trace'}</th>
+                <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '确认人' : 'Confirmed By'}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(min => (
-                <tr
-                  key={min.id}
-                  className="border-b border-neutral-100 hover:bg-neutral-50 cursor-pointer transition-colors"
-                >
+              {filtered.map((row) => (
+                <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50">
+                  <td className="px-3 py-2 text-sm font-mono font-medium text-primary-600">{row.confirmationNo}</td>
                   <td className="px-3 py-2">
-                    <span className="text-sm font-medium text-primary-600 font-mono">{min.minNo}</span>
+                    <StatusBadge status={row.status} locale={language} />
                   </td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={min.status} locale={language} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className="text-sm font-mono text-neutral-700">{min.woNo}</span>
-                  </td>
-                  <td className="px-3 py-2 text-sm text-neutral-700">
-                    {language === 'zh-CN' ? min.requesterName : min.requesterNameEn}
-                  </td>
-                  <td className="px-3 py-2 text-sm text-neutral-700">{min.requiredDate}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className="inline-flex items-center gap-1 text-sm text-neutral-700">
-                      <PackageOpen className="h-3.5 w-3.5 text-neutral-400" />
-                      {min.itemsCount}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-sm text-neutral-500">{min.createdAt}</td>
+                  <td className="px-3 py-2 text-sm font-mono text-neutral-600">{row.requestNo}</td>
+                  <td className="px-3 py-2 text-sm font-mono text-neutral-600">{row.buildOrderNo}</td>
+                  <td className="px-3 py-2 text-sm font-mono text-neutral-600">{row.batchNo}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{language === 'zh-CN' ? row.warehouse : row.warehouseEn}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{row.lotTrace}</td>
+                  <td className="px-3 py-2 text-sm text-neutral-700">{language === 'zh-CN' ? row.confirmedBy : row.confirmedByEn}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-3 py-3 border-t border-neutral-200">
-          <span className="text-sm text-neutral-500">
-            {t('common.total_records', { count: filtered.length })}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-neutral-500">1 / 1</span>
-          </div>
-        </div>
       </Card>
 
-      <Card className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-neutral-900">
-              {language === 'zh-CN' ? 'FIFO 批次发料演示' : 'FIFO Batch Issue Demo'}
-            </h3>
-            <p className="text-sm text-neutral-500">
-              {language === 'zh-CN'
-                ? '演示按收货日期先入先出分配批次并扣减库存'
-                : 'Preview and issue lots by FIFO (oldest receipt first).'}
-            </p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={handlePreview}>
-            <Wand2 className="h-4 w-4" />
-            {language === 'zh-CN' ? '自动分配' : 'Auto Allocate'}
-          </Button>
+      <Card className="space-y-3">
+        <div className="flex items-center gap-2">
+          <PackageOpen className="h-4 w-4 text-neutral-500" />
+          <h3 className="text-base font-semibold text-neutral-900">{language === 'zh-CN' ? '执行规则' : 'Execution Rules'}</h3>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '物料' : 'Item'}</label>
-            <select
-              value={selectedItemId}
-              onChange={(e) => setSelectedItemId(e.target.value)}
-              className="mt-1 w-full h-9 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {stockSummaries.map((stock) => (
-                <option key={stock.itemId} value={stock.itemId}>
-                  {formatItemNoWithRevision(stock.itemNo, getRevision(stock.itemId))} - {language === 'zh-CN' ? stock.itemName : stock.itemNameEn}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-neutral-500">{language === 'zh-CN' ? '申请数量' : 'Requested Qty'}</label>
-            <input
-              type="number"
-              min={1}
-              value={requestedQty}
-              onChange={(e) => setRequestedQty(Number(e.target.value))}
-              className="mt-1 w-full h-9 rounded-md border border-neutral-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          <div className="flex items-end">
-            <Button size="sm" onClick={handleIssue} disabled={!previewResult?.canAllocateFull}>
-              <Play className="h-4 w-4" />
-              {language === 'zh-CN' ? '执行发料' : 'Issue Now'}
-            </Button>
-          </div>
-        </div>
-
-        {selectedItem && (
-          <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
-            <span className="font-medium">{language === 'zh-CN' ? '当前可用库存' : 'Current Available'}: </span>
-            {selectedItem.availableQty} {selectedItem.uom}
-          </div>
-        )}
-
-        {previewResult && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-neutral-900">
-                {language === 'zh-CN' ? 'FIFO 分配结果' : 'FIFO Allocation Result'}
-              </h4>
-              <span className="text-xs text-neutral-500">
-                {language === 'zh-CN'
-                  ? `已分配 ${previewResult.allocatedQty} / 申请 ${previewResult.requestedQty}`
-                  : `Allocated ${previewResult.allocatedQty} / Requested ${previewResult.requestedQty}`}
-              </span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-neutral-200 bg-neutral-50">
-                    <th className="px-3 py-2 text-xs font-medium text-neutral-500">#</th>
-                    <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '批次号' : 'Lot No.'}</th>
-                    <th className="px-3 py-2 text-xs font-medium text-neutral-500">{language === 'zh-CN' ? '收货日期' : 'Received'}</th>
-                    <th className="px-3 py-2 text-xs font-medium text-neutral-500 text-right">{language === 'zh-CN' ? '分配数量' : 'Allocated Qty'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewResult.allocations.map((allocation, index) => (
-                    <tr key={`${allocation.lotId}-${index}`} className="border-b border-neutral-100">
-                      <td className="px-3 py-2 text-xs text-neutral-500">{index + 1}</td>
-                      <td className="px-3 py-2 text-sm font-mono text-neutral-700">{allocation.lotNo}</td>
-                      <td className="px-3 py-2 text-sm text-neutral-700">{allocation.receivedDate}</td>
-                      <td className="px-3 py-2 text-sm text-neutral-900 text-right font-medium">{allocation.quantity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {previewResult.shortageQty > 0 && (
-              <div className="inline-flex items-center gap-2 rounded-md bg-warning-50 px-3 py-2 text-sm text-warning-700">
-                <TriangleAlert className="h-4 w-4" />
-                {language === 'zh-CN'
-                  ? `库存不足，缺口 ${previewResult.shortageQty}`
-                  : `Insufficient stock, shortage ${previewResult.shortageQty}`}
-              </div>
-            )}
-          </div>
-        )}
-
-        {issueResult && issueResult.canAllocateFull && (
-          <div className="rounded-md bg-success-50 px-3 py-2 text-sm text-success-700">
-            {language === 'zh-CN'
-              ? '发料成功。请前往库存总览查看批次数量已按 FIFO 扣减。'
-              : 'Issue completed. Open Stock Overview to confirm FIFO lot deductions.'}
-          </div>
-        )}
+        <ul className="space-y-2 text-sm text-neutral-600">
+          <li>{language === 'zh-CN' ? '1. 發料必须引用已批准的領料单。' : '1. Withdrawal confirmation must reference an approved request.'}</li>
+          <li>{language === 'zh-CN' ? '2. 每张發料单只对应一个仓库。' : '2. Each confirmation belongs to one warehouse only.'}</li>
+          <li>{language === 'zh-CN' ? '3. 批次扣减与追溯文件同步生成。' : '3. Lot deductions and trace documents are generated together.'}</li>
+        </ul>
       </Card>
     </div>
   )
