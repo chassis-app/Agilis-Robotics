@@ -1,642 +1,615 @@
-# Statement of Work (SOW) - Functional Scope List
+# Statement of Work (SOW)
+## Functional Scope and Business Process Understanding
 
-## 1. Basis of This Draft
+## 1. Document Purpose
 
-- This draft is consolidated from the current repository codebase, especially the functional pages under `agilis-erp-demo/src/pages`, and the existing project documents under `docs/`.
-- Primary reference documents used:
-  - `docs/01_REQUIREMENTS.md`
-  - `docs/02_SYSTEM_DESIGN.md`
-  - `docs/04_WORKFLOWS.md`
-  - `docs/05_API_AND_REPORTING.md`
-  - `docs/design/09_UIUX_DESIGN.md`
-  - `20260314-changes.md`
-- This list is intended to serve as a contract-facing functional scope baseline for the target ERP system, not merely a snapshot of the current front-end demo.
-- Where the documentation baseline is broader than the current demo UI, the remarks call that out so the scope is clear and not overstated.
-- Field-level preservation remains governed by the legacy field preservation rule and bilingual field master; this SOW is a function list, not a full field dictionary.
+- This document is prepared as a contract-facing functional scope list for the proposed ERP system.
+- The focus of this version is business function, designed workflow, and operational process understanding.
+- Technical and non-functional matters are mentioned only briefly in a separate section.
+- This draft is based on:
+  - current application code under `agilis-erp-demo/src/pages`
+  - requirements and workflow documents under `docs/`
+  - client-specific change direction captured in `20260314-changes.md`
 
-## 2. System-Wide Functional and Design Baseline
+## 2. Business Understanding Summary
 
-### Module: Cross-System Platform, Compliance, and Governance
+- The client’s business is not a generic trading ERP flow. It is a regulated medical-device operation with strong control requirements over engineering versioning, production traceability, approvals, inspection, and audit history.
+- Procurement is expected to follow a controlled `PR -> RFQ/quotation -> PO -> receipt -> inspection -> return/release -> AP/payment` chain rather than free-form purchasing.
+- Manufacturing is expected to operate from order-driven or planning-driven build orders, with market and BOM eligibility checks, production batch split, controlled warehouse withdrawal, and Internal QC before release.
+- Engineering control is expected to manage temporary and formal part numbers, versioned BOMs, substitute materials, and formal ECR/ECO release logic.
+- Quality is expected to cover incoming inspection, Internal QC, complaints, CAPA, engineering-change linkage, and full forward/backward traceability.
+- Finance is expected to follow procurement and warehouse events closely, especially PO payment milestones, payment requests, AP reconciliation, tax invoice follow-up, and finance blocking when goods return affects settlement.
+- The system must show clear bilingual operation and preserve legacy field visibility while moving the client into a more controlled and searchable process.
 
-#### Submodule: Bilingual UX and Canonical Data Governance
-- Feature:
-  - Chinese and English UI support across navigation, forms, tables, and document screens.
-  - Bilingual master-data display for item names, supplier names, and other business labels.
-  - Canonical English field keys for schema and API, with localized Chinese/English display labels in UI.
-  - Preservation of all visible legacy-system fields unless removed through formal change control.
-- Remarks on design:
-  - English canonical keys follow `snake_case`; Chinese remains a presentation-layer label standard.
-  - One logical field may have multiple UI labels, but only one canonical key.
-  - The system must support instant language switching and user-level language preference persistence.
+## 3. Functional Scope by Module
 
-#### Submodule: Identity, Roles, and Access Control
-- Feature:
-  - User account management.
-  - Role-based permissions for viewing, editing, approving, and administering records.
-  - Department- and site-aware permission scope where relevant.
-  - Regulated-action authentication for submit, approve, reject, override, and other controlled actions.
-- Remarks on design:
-  - Identity and access are part of the mandatory API surface (`/auth/*`, `/users/*`, `/roles/*`, `/permissions/*`).
-  - Permission scope must be definable down to field, document, workflow, and approval level where required.
+### Module: Cross-System Controls
 
-#### Submodule: Workflow, Approvals, and Electronic Signature
-- Feature:
-  - Configurable workflow engine for document submission, approval, rejection, and escalation.
-  - Two-level approval baseline where mandated, with extensibility for more complex routing.
+#### Submodule: Bilingual Operation
+- Functional scope:
+  - Chinese and English display across navigation, forms, tables, and document screens.
+  - Bilingual display for core business names such as item, supplier, and selected master-data values.
+  - User-level language switching and preference persistence.
+- Designed workflow and process:
+  - Users enter the same business process regardless of language.
+  - The system presents the same documents, statuses, and actions in the selected language while preserving one canonical underlying data structure.
+  - Document numbers and system identifiers remain stable across both languages.
+
+#### Submodule: Roles, Permissions, and Controlled Actions
+- Functional scope:
+  - User management.
+  - Role and permission management.
+  - Access control for view, edit, submit, approve, reject, release, and override actions.
+  - Department- or site-aware control where needed.
+- Designed workflow and process:
+  - A user first gains access based on assigned role and organizational responsibility.
+  - The system then determines which records can be created, viewed, edited, or approved by that user.
+  - Controlled actions such as approval, rejection, or override are not treated as ordinary edits; they are treated as governed events with stronger authentication and trace requirements.
+
+#### Submodule: Workflow, Approval, and E-Signature
+- Functional scope:
+  - Workflow submission.
+  - Multi-step approval routing.
+  - Approval history and approval timeline.
   - Electronic signature capture for regulated actions.
-  - Approval timeline, approval history, and signature verification evidence.
-  - GM override path for exceptional warehouse-release scenarios.
-- Remarks on design:
-  - Submit is a first-class workflow action, not only a status update.
-  - Electronic signature behavior must align with 21 CFR Part 11 expectations: re-authentication, timestamp, meaning of signature, immutable record.
-  - Workflow actions publish integration and audit events.
+  - GM override for exceptional release scenarios.
+- Designed workflow and process:
+  - A business document is created in draft status.
+  - The requester explicitly submits the document into a workflow.
+  - The system routes the document to the required approvers according to document type and policy.
+  - Each approval or rejection is recorded as a distinct controlled event.
+  - Where the process requires a higher-level override, the system forces a reason and signature before allowing the exception.
 
-#### Submodule: Audit Trail, Change Control, and Record Integrity
-- Feature:
-  - Immutable audit trail per document and transaction.
-  - Before/after value capture for material field changes.
-  - Audit reporting by document and workflow.
-  - Controlled change-request process for deviations from approved baseline.
-- Remarks on design:
-  - Audit records must preserve user, action, timestamp, reason, and signature context.
-  - Medical-device traceability requires long-term retention of immutable audit and event records.
-  - Hash-chain or equivalent integrity assurance is expected for signature-linked audit events.
+#### Submodule: Audit Trail and Change Control
+- Functional scope:
+  - Immutable audit history by document and action.
+  - Recording of before/after field changes where required.
+  - Controlled deviation and change-request handling for scope or baseline changes.
+- Designed workflow and process:
+  - Every major business event such as create, edit, submit, approve, reject, release, or override is written into audit history.
+  - Where key fields are changed, the system records old value, new value, actor, time, and reason.
+  - If a requested process change affects approved baseline behavior, the change must move through formal review rather than informal configuration only.
 
-#### Submodule: Document Numbering and Sequence Control
-- Feature:
-  - Formal and informal document numbering families across the end-to-end process.
-  - Sequence-family visibility on transaction documents.
-  - Internal-order numbering support where different from external/formal order numbering.
-- Remarks on design:
-  - Dual sequence rules apply across order, procurement, manufacturing, inventory, and quality documents.
-  - Sequence behavior is centrally configured in system administration rather than handled separately by each page.
+#### Submodule: Document Sequence and Numbering Rules
+- Functional scope:
+  - Formal and informal numbering families.
+  - Sequence behavior across order, procurement, manufacturing, inventory, and quality documents.
+  - Internal-order sequence support.
+- Designed workflow and process:
+  - When a document is created, the system assigns it into the correct sequence family according to business context.
+  - This sequence family is then preserved across the related downstream flow, so users can distinguish formal, informal, and internal business chains.
+  - The same sequence logic supports traceability, approval routing, and cross-module review.
 
-#### Submodule: Technical Architecture and Operational Controls
-- Feature:
-  - Versioned API surface for all major domains.
-  - Event-driven integration support through a message bus.
-  - PostgreSQL-centered transactional data model with document/object storage for attachments.
-  - Backup, restore, concurrency control, and environment promotion controls.
-- Remarks on design:
-  - Reference architecture keeps backend implementation language flexible, but canonical storage and integration patterns are already defined.
-  - Optimistic locking, full API audit logging, 10-year record retention, and PITR-capable backups are part of the design baseline.
-
-## 3. Functional Modules
-
-### Module: Home and User Workbench
+### Module: Home and Workbench
 
 #### Submodule: Dashboard
-- Feature:
-  - Home dashboard with KPI cards and summary metrics.
-  - Role-aware visibility into operational queues, alerts, and recent activity.
-  - Quick access to high-frequency operational areas.
-- Remarks on design:
-  - Dashboard is an entry-point surface, not a separate transaction engine.
-  - KPI visuals should always have data-table alternatives for accessibility and auditability.
+- Functional scope:
+  - KPI summary.
+  - Alert summary.
+  - Pending work visibility.
+  - Quick access to high-frequency functions.
+- Designed workflow and process:
+  - Users begin the day from a role-aware operational view.
+  - The dashboard highlights exceptions first, such as pending approvals, shortages, production status, or finance holds.
+  - Users then drill into the underlying transaction page to take action.
 
 #### Submodule: Approval Inbox
-- Feature:
-  - Central approval inbox for pending actions across document types.
-  - Display of requester, department, amount, date, document type, and status.
-  - Navigation into source document for review and action.
-- Remarks on design:
-  - Approval inbox is a cross-module work queue and must aggregate PR, payment request, warehouse, quality, and change-control approvals.
-  - The same approval engine and e-signature rules apply regardless of source module.
-
-#### Submodule: Navigation, Shell, and Search
-- Feature:
-  - Module-based sidebar navigation.
-  - Breadcrumbs and page context indicators.
-  - Responsive shell for desktop, tablet, and mobile.
-  - Global search entry design.
-- Remarks on design:
-  - Navigation follows the functional module structure defined by system architecture.
-  - The design baseline is role-aware, bilingual, and optimized for dense transactional screens rather than marketing-style layouts.
-
-### Module: Procurement
-
-#### Submodule: Purchase Requisition (PR)
-- Feature:
-  - PR creation, edit, detail, and list views.
-  - Line capture for item, revision, quantity, UOM, warehouse, required date, estimated price, and notes.
-  - Priority handling and requester/department ownership.
-  - Stock sufficiency and shortage-awareness during PR preparation.
-  - Submission and approval routing before downstream purchasing.
-- Remarks on design:
-  - PR-first, then PO, is a mandatory business rule.
-  - PR submit/approve/reject actions are controlled workflow events with audit and e-signature.
-  - Approved PR is the contractual gate for RFQ and PO generation.
-
-#### Submodule: Supplier RFQ and Quotation Review
-- Feature:
-  - RFQ creation from approved PR demand.
-  - Supplier quotation capture and comparison.
-  - Side-by-side evaluation of price, lead time, MOQ, and other commercial factors.
-  - Winner selection with recorded rationale.
-  - Optional additional approval for high-value sourcing decisions.
-- Remarks on design:
-  - Winning quotation lines should remain linked to PO lines for audit traceability.
-  - Quote version history must be retained, not overwritten.
-
-#### Submodule: Purchase Order (PO)
-- Feature:
-  - PO creation from approved PR and selected quotation data.
-  - Supplier, buyer, delivery, notes, totals, and currency management.
-  - Line-level received quantity tracking.
-  - Status management through draft, submitted, approved, sent, and follow-up stages.
-  - Payment-plan setup inside the PO, including milestone-driven payment schedules.
-- Remarks on design:
-  - Multi-currency handling must support RMB and USD.
-  - PO lines should carry source quotation and requisition references where available.
-  - The current demo explicitly models mixed payment modes within a single PO.
-
-#### Submodule: PO Payment Scheduling
-- Feature:
-  - Mixed-mode payment support inside one PO, including prepayment, COD, and monthly settlement.
-  - Payment milestone amounts, requested amounts, paid amounts, and outstanding balance tracking.
-  - Linked payment-request generation from PO milestones.
-  - Re-approval behavior when payment mode changes after initial approval.
-- Remarks on design:
-  - Payment scheduling is functionally part of procurement, but operationally linked to finance approval and AP reconciliation.
-  - Existing UI and mock models already treat this as a first-class PO capability.
-
-#### Submodule: Goods Receipt (GRN)
-- Feature:
-  - Receipt posting against PO.
-  - Warehouse and received-date tracking.
-  - Lot/serial generation or scan support per workflow baseline.
-  - Item check report follow-up.
-  - Tax invoice follow-up visibility.
-  - Direct navigation to supplier return when needed.
-- Remarks on design:
-  - GRN acts as a parent transaction for inspection evidence, finance follow-up, and supplier-return traceability.
-  - Incoming inspection should be triggered automatically where quarantine/release rules require it.
-
-#### Submodule: Goods Return
-- Feature:
-  - Supplier-return document for materials received against GRN/PO.
-  - Return header with source GRN, source PO, supplier, warehouse, reason, and status.
-  - Check-report status and tax-invoice status on the return record.
-  - Return quantity and line-level disposition tracking.
-  - Links back to receipt, inspection, and AP reconciliation.
-- Remarks on design:
-  - Scope is supplier return, not generic customer return.
-  - Finance blocking behavior for tax invoices affected by return is part of the intended process.
-  - Approval policy support for goods return is already reflected in the current admin configuration.
-
-### Module: Inventory and Warehouse
-
-#### Submodule: Stock Overview and Lot Control
-- Feature:
-  - Inventory visibility by item, revision, lot, warehouse, and location.
-  - On-hand, reserved, and available quantity tracking.
-  - Lot status management such as available, reserved, quarantine, and consumed.
-  - Safety-stock and reorder-point visibility at stock summary level.
-- Remarks on design:
-  - Inventory is not only quantity-based; lot-level identity is required for traceability.
-  - The documented API surface includes inventory, lots, serials, and inventory-transaction namespaces.
-
-#### Submodule: Material Withdrawal Request (`領料`)
-- Feature:
-  - Request-to-withdraw inventory for production or warehouse execution.
-  - Launch from source detail pages and summary batch mode.
-  - Merge same-material demand into one request when grouping rules match.
-  - Required fields for reason, build order or production batch, warehouse, and approval status.
-  - One-order-per-warehouse behavior where required by process rule.
-- Remarks on design:
-  - This document is a request stage, not the physical stock deduction stage.
-  - Grouping and merge behavior must retain full audit of original source lines.
-  - The current codebase explicitly repositions this document as `Material Withdrawal Request`.
-
-#### Submodule: Material Withdrawal Confirmation (`發料`)
-- Feature:
-  - Warehouse execution and confirmation of inventory withdrawal against approved request.
-  - Lot allocation and FIFO-based issue execution.
-  - Trace back to warehouse, production batch, and source request.
-  - Inventory transaction posting at execution time.
-- Remarks on design:
-  - Confirmation must reference the approved withdrawal request rather than exist independently.
-  - This is the physical issue stage and should produce irreversible inventory movement records.
-
-#### Submodule: Shortage Handling
-- Feature:
-  - Shortage detection during inventory issue.
-  - Branch actions to create material demand request, stock transfer, PR/PO conversion, or partial issue.
-  - Resume of pending issue flow after replenishment.
-- Remarks on design:
-  - Shortage handling is a controlled branch of the inventory process, not an ad hoc manual exception.
-  - The UX baseline includes a guided shortage-resolution dialog to force explicit operator choice.
-
-#### Submodule: Stock Transfers
-- Feature:
-  - Inter-warehouse transfer order creation.
-  - Transfer use for shortage resolution and stock balancing.
-  - Warehouse-to-warehouse movement trace.
-- Remarks on design:
-  - Transfer is a formal document flow and should generate inventory transactions at both source and destination.
-
-#### Submodule: Cycle Count and Periodic Warehouse Checks
-- Feature:
-  - Quarterly and yearly count-plan generation.
-  - Blind-count execution and variance capture.
-  - Variance approval and adjustment posting with reasons.
-- Remarks on design:
-  - Periodic checks are a documented workflow requirement, not just a report.
-  - Variance approval is expected to carry e-signature and audit evidence.
-
-#### Submodule: Safety Stock Alerts
-- Feature:
-  - Configurable safety-stock thresholds and reminder cycles.
-  - Immediate and recurring alert generation.
-  - Low and critical alert-level handling.
-  - Recipient targeting by role, department, named users, and extra email addresses.
-  - Email template configuration and test-send support.
-- Remarks on design:
-  - Alerting is rule-driven and scheduler-driven.
-  - Alert closure requires recovered inventory or explicit policy disablement.
-  - The current system configuration UI already models cooldown, send mode, and recipient resolution.
-
-### Module: Manufacturing
-
-#### Submodule: Build Orders / Work Orders
-- Feature:
-  - Build-order list and detail management.
-  - Source-order linkage to formal sales, informal sales, or internal orders.
-  - Market, sequence family, and product-scope context on the manufacturing order.
-  - BOM expansion and operation/module execution basis.
-  - Completion progress tracking.
-- Remarks on design:
-  - The current codebase has already shifted terminology toward `Build Orders`.
-  - Manufacturing release must respect market eligibility and formal/informal order rules from the order-management module.
-
-#### Submodule: Module Readiness and Release Gating
-- Feature:
-  - Module readiness checks before production release.
-  - Requirement that all required modules be ready before release of the build order.
-  - Controlled release for semi-finished and finished goods.
-- Remarks on design:
-  - This gating rule comes directly from the documented workflow and manufacturing requirements.
-  - The gate exists to prevent release of incomplete assemblies and protect device-history integrity.
-
-#### Submodule: Production Batch Split
-- Feature:
-  - Split one parent build order into multiple child execution batches.
-  - Batch numbering and visibility in detail and progress views.
-  - Batch-level linkage to withdrawal request, withdrawal confirmation, and Internal QC.
-  - Support for additional split actions on an existing build order.
-- Remarks on design:
-  - Batch split is an execution mechanism, not duplication of order intent.
-  - The current UI explicitly models batch-wise warehouse and QC trace.
-
-#### Submodule: Production Progress
-- Feature:
-  - Progress view by build order, batch, and stage.
-  - Tracking of execution stages such as withdrawal confirmation, assembly, and Internal QC.
-  - Queue and prioritization visibility.
-- Remarks on design:
-  - Progress should be readable from both operation-level and batch-level perspectives.
-  - Design intent is to give planners a quick exception-oriented view of bottlenecks and pending releases.
-
-#### Submodule: Subcontract Processing
-- Feature:
-  - Subcontract order creation for outsourced processing.
-  - Material-availability check before issue to subcontractor.
-  - PR/PO branch creation when subcontract materials are insufficient.
-  - Shipment of components to subcontractor and receipt of processed goods.
-  - Subcontract fee statement generation and AP reconciliation linkage.
-- Remarks on design:
-  - Sent material lots and returned finished lots must remain fully traceable.
-  - This is a dedicated workflow, not just a PO subtype.
-
-#### Submodule: Production Receipt and Device History Record
-- Feature:
-  - Production receipt posting for finished or semi-finished output.
-  - Final-inspection gating before release.
-  - Device history record aggregation from BOM, material consumption, operations, inspections, documents, and approvals.
-- Remarks on design:
-  - This capability is strongly documented in the design pack, although the current demo surfaces it mainly through traceability and quality views rather than a dedicated DHR page.
-
-### Module: Engineering and PLM
-
-#### Submodule: Item Master
-- Feature:
-  - Item master list, detail, search, and classification management.
-  - Base category plus three additional structured category fields.
-  - Sourcing type, part source, lifecycle, default supplier, lead time, MOQ, safety stock, and pricing attributes.
-  - Revision-aware item display.
-- Remarks on design:
-  - The additional category fields are required for Internal QC template selection and rules.
-  - The design baseline requires preservation of legacy visible fields and bilingual naming.
-
-#### Submodule: Item Revision and Part Number Lifecycle
-- Feature:
-  - Revision records per item.
-  - Temporary part numbering during R&D.
-  - Formal part numbering at mass-production stage.
-  - Effectivity and change-history support.
-- Remarks on design:
-  - Temporary-to-formal conversion must preserve mapping history.
-  - Revision auto-upgrade logic must not break active orders and must respect effectivity dates.
-
-#### Submodule: BOM Management
-- Feature:
-  - BOM tree and structure maintenance.
-  - Permanent layer numbering such as `1`, `1.1`, `1.1.1`.
-  - Custom row ordering independent of numbering.
-  - Multi-source selection per BOM line.
-  - BOM class tagging for final product vs semi-product.
-  - BOM header tags for market or country applicability.
-  - Substitute-material support.
-- Remarks on design:
-  - Layer numbers are permanent; deleted numbers are not reused; replacements keep the original number.
-  - BOM classification directly affects order and build-order creation rules.
-  - The BOM UI must clearly distinguish outsourced, purchased, and manufactured content.
-
-#### Submodule: BOM Comparison
-- Feature:
-  - Comparison of two BOM versions down to lowest-level components.
-  - Identification of added, removed, replaced, and quantity-changed parts.
-  - Visibility into header-tag or market applicability changes.
-  - Layer-number context carried through the diff view.
-- Remarks on design:
-  - This is a first-class review and audit function for engineering change, not only a convenience tool.
-  - The current demo already includes a dedicated comparison screen.
-
-#### Submodule: ECR / ECO and Controlled Engineering Change
-- Feature:
-  - ECR submission with impacted items, BOMs, and documents.
-  - Reason modeling for CAPA-driven, material-driven, and part-driven changes.
-  - Approval routing by impact and severity.
-  - ECO package generation and release.
-  - Parent-BOM revision propagation after child revision change.
-  - Sunset and release control of old/new revisions.
-- Remarks on design:
-  - Engineering change is explicitly linked to downstream procurement, production, and quality consequences.
-  - The current change-chain design places complaint -> CAPA -> ECR -> BOM/version release in one controlled flow.
-
-#### Submodule: Controlled Documents
-- Feature:
-  - Upload, revision, review, approval, and release of controlled documents.
-  - Document linkage to item, BOM, PO, build order, and other source objects.
-  - Latest-effective released document resolution at point of use.
-  - Retention of obsolete document revisions as read-only records.
-- Remarks on design:
-  - Document management is required for both procurement and production usage.
-  - Object storage and immutable revision history are expected design controls.
-
-#### Submodule: Project Management
-- Feature:
-  - No standalone project-management page is currently included in active UI scope.
-- Remarks on design:
-  - Earlier requirements mentioned project/PLM capability, but the 2026-03-14 approved change plan explicitly removed `Project Management` from current navigation and route scope.
-  - If the client wants a standalone project module reinstated, it should be treated as a change request or a separately priced scope item.
-
-### Module: Quality and Compliance
-
-#### Submodule: Inspections
-- Feature:
-  - Incoming, in-process, and final inspection records.
-  - Linkage to GRN, work/build order, lot, and quantity.
-  - Pass, fail, and conditional result handling.
-  - Visibility into source checklist/template where applicable.
-  - Linkage to goods-return item check reports and Internal QC records.
-- Remarks on design:
-  - Receipt disposition and quarantine-release behavior depend on inspection outcome.
-  - The inspection register remains generic, but it is now positioned inside a broader QC flow.
-
-#### Submodule: Complaints
-- Feature:
-  - Complaint intake by market, product, customer, and severity.
-  - Complaint list, detail, and status handling.
-  - CAPA initiation from complaint.
-  - Linkage to affected product and downstream engineering change.
-- Remarks on design:
-  - Complaint is the upstream entry point to regulated corrective-action flow.
-  - Market context is important because complaint impact can be geography-specific.
-
-#### Submodule: CAPA / Nonconformance
-- Feature:
-  - CAPA-centric workflow page.
-  - Visibility of linked complaint, CAPA, ECR, BOM change, and released new BOM version.
-  - Open/approved status management and change-chain review.
-  - Retention of nonconformance records within the broader CAPA process.
-- Remarks on design:
-  - CAPA is treated as the primary controlled process; NC is subordinate or linked, not the whole quality model.
-  - Approval routing can span quality, engineering, and GM depending on policy.
-
-#### Submodule: Internal QC
-- Feature:
-  - Internal QC documents tied to build order and production batch.
-  - AQL-based sample-size calculation.
-  - QC template selection by market and Category A/B/C item classification.
-  - Generated printable QC packet.
-  - Recalculation of AQL logic and print operations.
-- Remarks on design:
-  - Internal QC is not the same as generic inspection; it is a dedicated major workflow.
-  - The design is print-first because the shop-floor packet must exist as a fixed document, not just on-screen data entry.
-
-#### Submodule: Internal QC Template Editor
-- Feature:
-  - WYSIWYG template authoring for printable QC forms.
-  - Reusable template blocks including AQL blocks and controlled header areas.
-  - Automatic injection of market, category, build-order, and batch metadata into template output.
-  - System-stored template definitions and generated form output.
-- Remarks on design:
-  - The client requirement explicitly rejects dependence on externally managed PDFs for this flow.
-  - Template design is an internal system capability and part of operational scope.
-
-#### Submodule: Traceability and Genealogy
-- Feature:
-  - Search-driven trace entry from document number, item number, product number, lot, or serial.
-  - Forward and backward traceability.
-  - Workflow-style lineage across order, build order, withdrawal request, withdrawal confirmation, inspection/Internal QC, goods return, and quality change-chain documents where relevant.
-  - Exportable genealogy and device-history evidence views.
-- Remarks on design:
-  - The latest design direction prefers a workflow view rather than a dense tree-only visualization.
-  - This module is central to MDR, ISO 13485, and FDA traceability expectations.
-
-#### Submodule: Regulatory Evidence and UDI Support
-- Feature:
-  - Audit-trail report by document.
-  - E-signature evidence report.
-  - Revision-history reporting.
-  - UDI lifecycle support as part of compliance baseline.
-- Remarks on design:
-  - UDI is a required compliance capability from baseline documentation, although it is not yet surfaced as a dedicated first-class screen in the current demo.
-  - Compliance reporting should be treated as contractual evidence generation, not only management analytics.
+- Functional scope:
+  - Central inbox for documents awaiting approval.
+  - Cross-module approval queue.
+  - Direct navigation to source records.
+- Designed workflow and process:
+  - Approvers do not need to visit each business module separately.
+  - The system gathers all pending approval tasks into one controlled work queue.
+  - From the inbox, the approver opens the document, reviews supporting information, signs, and completes the decision.
 
 ### Module: Order Management and Demand Planning
 
 #### Submodule: Order Management
-- Feature:
-  - Unified management of formal sales orders, informal sales orders, and internal orders.
-  - Order-type and market filtering.
-  - Sequence-family visibility.
-  - Summary metrics by order type, sequence family, and market.
-- Remarks on design:
-  - This module replaces a narrower `Sales Orders` concept with a broader operational order model.
-  - Market and sequence family are core business controls, not optional labels.
+- Functional scope:
+  - Unified handling of formal sales orders, informal sales orders, and internal orders.
+  - Order list, search, status, and summary views.
+  - Market and sequence-family filtering.
+- Designed workflow and process:
+  - The business begins with a demand signal that may come from an external customer order or an internal order.
+  - The system classifies the order by order type and sequence family from the start.
+  - This classification controls downstream manufacturing, inventory, and document numbering behavior.
 
-#### Submodule: Order Detail and Market/BOM Eligibility
-- Feature:
-  - Order header capture for order type, market, sequence family, and product rule.
-  - Market-specific BOM eligibility validation on order lines.
-  - Visibility when no valid BOM exists for the selected market.
-  - Restrictions on creation of semi-product build orders depending on order type.
-  - Linked document chain to PR, build order, and Internal QC.
-- Remarks on design:
-  - Formal orders are intended to allow final-product BOMs only; informal/internal flows may allow semi-product creation where business rules permit.
-  - This module is where market-specific engineering constraints become operationally enforceable.
+#### Submodule: Order Detail and Market Control
+- Functional scope:
+  - Order header with order type, market, sequence family, and product rule.
+  - Order-line control for market-eligible products.
+  - Linked document view for downstream build orders and related records.
+- Designed workflow and process:
+  - The user selects market and order type at the order header.
+  - The system limits product and BOM selection based on the selected market.
+  - If no valid BOM exists for that market, the user is warned and cannot proceed as if the product were valid.
+  - Once approved or released for execution, the order becomes the upstream driver for build-order generation and downstream traceability.
 
-#### Submodule: Sales Forecasts
-- Feature:
-  - Forecast list and period-based forecast detail management.
-  - Manual creation and Excel import/export support.
-  - Forecast-line capture by finished good, revision, quantity, price, and confidence.
-  - Status flow through draft, accepted, processed, and closed.
-  - Shortage warning indicator on forecast records.
-- Remarks on design:
-  - Forecast acceptance is a control point because only accepted demand should drive procurement generation.
-  - Forecasting is operational planning scope, not only reporting.
+#### Submodule: Sales Forecast
+- Functional scope:
+  - Forecast creation and maintenance by period.
+  - Excel import and export.
+  - Forecast-line entry for finished goods, quantities, and planning confidence.
+  - Forecast status management.
+- Designed workflow and process:
+  - Forecast is created for a defined planning period.
+  - The planner can maintain forecast lines manually or via spreadsheet import.
+  - When the forecast is accepted, it becomes a controlled input into procurement planning.
+  - Accepted forecast data can then drive BOM explosion and requisition generation.
 
 #### Submodule: Sales-Driven Procurement Planning
-- Feature:
-  - BOM explosion from forecast or accepted sales demand.
-  - Net-requirement calculation using required, on-hand, and remaining on-order quantities.
-  - Grouping of components by preferred supplier.
-  - PR generation by supplier.
-  - Exception handling for multi-supplier or unresolved supplier selection.
-  - Trace linkage back to source forecast or sales demand.
-- Remarks on design:
-  - This is documented as WF-15 and is part of the baseline workflow scope.
-  - Procurement planning here is demand-driven and BOM-aware, not only manual requisition entry.
+- Functional scope:
+  - BOM explosion from accepted forecast or demand.
+  - Net requirement calculation.
+  - Grouping by preferred supplier.
+  - PR generation from planning demand.
+- Designed workflow and process:
+  - The system takes finished-good demand and explodes it into component requirements.
+  - It then subtracts on-hand and open-order quantities to determine net requirement.
+  - Components are grouped by supplier logic.
+  - Ready components are converted into PRs, while unresolved supplier situations are held for planner review.
 
-#### Submodule: Shipment and Outbound Genealogy
-- Feature:
-  - Shipment posting for finished goods.
-  - Allocation of finished lots/serials to shipment documents.
-  - Write-back of genealogy from shipped finished goods to consumed component lots through source build order.
-  - Customer/device forward and reverse trace query support.
-- Remarks on design:
-  - This is a mandatory documented workflow capability even though the current demo expresses it mainly through traceability and reporting surfaces rather than a dedicated shipment page.
+### Module: Procurement
 
-### Module: Finance and Integration
+#### Submodule: Purchase Requisition (PR)
+- Functional scope:
+  - PR list, create, edit, and detail.
+  - Item-level demand capture.
+  - Priority, requester, department, warehouse, and required-date control.
+  - Submission and approval.
+- Designed workflow and process:
+  - A department user raises a PR based on operational need, shortage, planning output, or engineering demand.
+  - The PR records what is needed, when it is needed, and for which warehouse or purpose.
+  - The requester submits the PR.
+  - The PR then moves through the required approval chain.
+  - Only approved PRs proceed to RFQ or PO creation.
+
+#### Submodule: RFQ and Supplier Quotation Review
+- Functional scope:
+  - RFQ generation from approved PR.
+  - Supplier quotation capture.
+  - Commercial comparison and supplier selection.
+  - Selection rationale recording.
+- Designed workflow and process:
+  - Procurement converts approved demand into RFQ activity.
+  - Suppliers provide quotations.
+  - The system compares suppliers on price, lead time, MOQ, and related commercial conditions.
+  - The responsible buyer or reviewer selects the winning quotation and records the reason for selection.
+  - The selected quote becomes the basis for PO creation.
+
+#### Submodule: Purchase Order (PO)
+- Functional scope:
+  - PO creation, list, and detail.
+  - PO lines, supplier details, buyer details, delivery date, totals, and notes.
+  - PO status flow and received quantity tracking.
+- Designed workflow and process:
+  - Procurement creates the PO from approved PR and selected supplier terms.
+  - The PO becomes the formal commitment document to the supplier.
+  - Downstream receipt, inspection, return, invoice, and payment activity all reference this PO.
+
+#### Submodule: PO Payment Plan
+- Functional scope:
+  - Payment schedule within the PO.
+  - Support for prepay, COD, monthly settlement, or mixed payment mode.
+  - Requested amount, paid amount, and outstanding balance tracking.
+  - Re-approval trigger when payment arrangement changes.
+- Designed workflow and process:
+  - The PO is not treated only as a purchasing document; it also carries planned settlement logic.
+  - Payment stages are defined according to the commercial agreement.
+  - As milestones are reached, payment requests are generated from the open PO balance.
+  - If payment mode changes materially after approval, the process returns to review rather than silently replacing the old logic.
+
+#### Submodule: Goods Receipt
+- Functional scope:
+  - Receipt posting against PO.
+  - Warehouse and receipt-date control.
+  - Lot or serial capture.
+  - Follow-up visibility for item check report, return status, and tax invoice status.
+- Designed workflow and process:
+  - Warehouse receives materials against a PO.
+  - The system records the receipt and the associated lot or serial identity.
+  - Where inspection is required, received material enters the appropriate inspection path instead of directly becoming unrestricted stock.
+  - The GRN remains the reference point for inspection, goods return, and finance follow-up.
+
+#### Submodule: Goods Return
+- Functional scope:
+  - Supplier-return document linked to source GRN and PO.
+  - Return reason, warehouse, status, item check report status, and tax invoice status.
+  - Return quantity and return-line control.
+- Designed workflow and process:
+  - If received goods fail inspection or otherwise require return, the user creates a supplier-return record from the source receipt.
+  - The return tracks exactly what material is being returned, why, and under which source transaction.
+  - Finance and AP status are updated accordingly so that tax invoice or settlement activity can be blocked or adjusted where necessary.
+
+### Module: Inventory and Warehouse
+
+#### Submodule: Stock Overview
+- Functional scope:
+  - Stock by item, revision, lot, warehouse, and location.
+  - On-hand, reserved, and available quantity visibility.
+  - Safety-stock visibility.
+- Designed workflow and process:
+  - Warehouse and planning users use the stock overview to understand current supply position.
+  - The system presents both quantity and stock identity, not quantity alone.
+  - This view supports shortage detection, allocation, transfer, and replenishment decisions.
+
+#### Submodule: Material Withdrawal Request (`領料`)
+- Functional scope:
+  - Request-to-withdraw material for production execution.
+  - Creation from detail page or summary batch mode.
+  - Merge of same-material demand when rules match.
+  - Warehouse-specific request handling.
+- Designed workflow and process:
+  - Production or planning identifies the need to withdraw material for a build order or batch.
+  - The request is raised as a formal warehouse request document.
+  - Where multiple lines qualify, the system can merge them into one controlled request to simplify warehouse picking.
+  - The request then enters approval if required before physical issue occurs.
+
+#### Submodule: Material Withdrawal Confirmation (`發料`)
+- Functional scope:
+  - Physical issue confirmation against approved withdrawal request.
+  - Lot allocation and inventory deduction.
+  - Warehouse and batch trace.
+- Designed workflow and process:
+  - Warehouse executes the approved withdrawal request.
+  - The system records the actual lots issued and posts inventory deduction.
+  - The confirmation remains linked to the source request, production batch, and warehouse so that material consumption can be fully traced later.
+
+#### Submodule: Shortage Handling
+- Functional scope:
+  - Shortage detection during issue.
+  - Branch action to demand request, stock transfer, PR/PO conversion, or partial issue.
+- Designed workflow and process:
+  - If the warehouse cannot fully issue material, the system does not leave the user in an unstructured exception state.
+  - It forces a controlled next step.
+  - Depending on the situation, the shortage is handled through internal replenishment, transfer, procurement conversion, or a deliberate partial issue path.
+
+#### Submodule: Stock Transfer
+- Functional scope:
+  - Inter-warehouse transfer order.
+  - Transfer execution and stock movement trace.
+- Designed workflow and process:
+  - When another warehouse can supply the shortage, a stock transfer is created as a formal movement document.
+  - The transfer records source, destination, and resulting movement.
+  - This becomes part of the same end-to-end material history.
+
+#### Submodule: Cycle Count and Periodic Check
+- Functional scope:
+  - Count plan generation.
+  - Count execution.
+  - Variance approval and stock adjustment.
+- Designed workflow and process:
+  - The system schedules periodic counting according to the business cycle.
+  - Warehouse executes the count and submits variances.
+  - Approved differences are posted through a controlled adjustment process with audit history.
+
+#### Submodule: Safety Stock Alert
+- Functional scope:
+  - Alert rules and thresholds.
+  - Repeated reminder cycle.
+  - Recipient routing and message configuration.
+- Designed workflow and process:
+  - The system checks stock against configured thresholds.
+  - If stock drops below the threshold, it raises immediate or scheduled reminders.
+  - Alerts continue until the stock position recovers or the policy is changed.
+
+### Module: Manufacturing
+
+#### Submodule: Build Order
+- Functional scope:
+  - Build-order list and detail.
+  - Source-order linkage.
+  - Market and sequence-family visibility.
+  - Quantity and completion tracking.
+- Designed workflow and process:
+  - A valid order or planning demand creates the need for execution.
+  - The system generates a build order tied back to the source order context.
+  - The build order becomes the central execution record for material issue, production progress, Internal QC, and traceability.
+
+#### Submodule: Module Readiness and Release Gate
+- Functional scope:
+  - Readiness check before release.
+  - Prevention of release when dependent modules are not ready.
+- Designed workflow and process:
+  - Before production starts, the system checks whether the required modules, components, or prerequisites are ready.
+  - If not, the build order is held from release.
+  - This protects the business from incomplete or uncontrolled production starts.
+
+#### Submodule: Production Batch Split
+- Functional scope:
+  - Parent build-order split into child production batches.
+  - Batch-level quantity, status, and downstream document trace.
+- Designed workflow and process:
+  - The client’s execution model requires one build order to be splittable into multiple production batches.
+  - This allows execution flexibility without losing the original planning intent.
+  - Each child batch then carries its own withdrawal request, withdrawal confirmation, QC, and progress trace.
+
+#### Submodule: Production Progress
+- Functional scope:
+  - Progress visibility by build order and production batch.
+  - Stage-based progress such as issue, assembly, QC, and completion.
+- Designed workflow and process:
+  - Production management needs a practical execution view rather than only a static order record.
+  - The system shows which batch is in which stage and where delays or bottlenecks are occurring.
+  - This supports daily coordination between production, warehouse, and quality.
+
+#### Submodule: Subcontract Processing
+- Functional scope:
+  - Subcontract order.
+  - Material issue to subcontractor.
+  - Receipt of processed goods.
+  - Subcontract fee statement and reconciliation linkage.
+- Designed workflow and process:
+  - When external processing is required, the system creates a subcontract order.
+  - It checks whether required materials are available.
+  - If materials are sufficient, they are issued to the subcontractor.
+  - If not, procurement is triggered to close the gap.
+  - Returned processed goods are received and inspected.
+  - Fees are then matched for reconciliation.
+
+### Module: Engineering and PLM
+
+#### Submodule: Item Master
+- Functional scope:
+  - Item master maintenance.
+  - Base category plus three additional category fields.
+  - Sourcing type, lifecycle, supplier, lead time, MOQ, safety stock, and related master data.
+- Designed workflow and process:
+  - Engineering or master-data management creates and maintains item identity.
+  - The item record becomes the upstream definition used by procurement, manufacturing, quality, and traceability.
+  - Additional category fields support Internal QC logic and template selection rather than replacing the original category structure.
+
+#### Submodule: Item Revision and Part Number Lifecycle
+- Functional scope:
+  - Revision tracking.
+  - Temporary part number in R&D.
+  - Formal part number at mass-production stage.
+  - Version effectivity and history.
+- Designed workflow and process:
+  - New parts may begin as temporary engineering numbers during development.
+  - Once released to formal production, the part is converted into a controlled formal number.
+  - The system preserves the relationship between temporary and formal identity so that change history and trace remain intact.
+
+#### Submodule: BOM Management
+- Functional scope:
+  - BOM structure maintenance.
+  - Permanent layer numbering.
+  - Custom row ordering.
+  - Header tags for market or applicability.
+  - Multi-source line classification.
+  - Semi-product and final-product BOM classification.
+  - Substitute-material support.
+- Designed workflow and process:
+  - Engineering defines product structure through controlled BOM versions.
+  - The system preserves stable layer numbering so that users can reference structure consistently over time.
+  - BOM classification and market tags then control whether a product is valid for a given order and whether it can be used in a formal or informal execution context.
+
+#### Submodule: BOM Comparison
+- Functional scope:
+  - Version-to-version BOM comparison.
+  - Detection of added, removed, replaced, and quantity-changed parts.
+  - Tag and market-difference visibility.
+- Designed workflow and process:
+  - When a BOM changes, users need to understand not only that it changed, but exactly where and why.
+  - The comparison view allows business, engineering, quality, and procurement teams to review part-level impact quickly.
+  - This supports engineering review, CAPA follow-up, and implementation planning.
+
+#### Submodule: ECR / ECO
+- Functional scope:
+  - ECR submission and review.
+  - ECO release package.
+  - Impacted item, BOM, and document linkage.
+  - Parent-revision update propagation.
+- Designed workflow and process:
+  - A change begins with an ECR, usually driven by engineering need, quality issue, material change, or customer complaint.
+  - The ECR moves through review and approval.
+  - Once approved, the ECO applies the controlled changes to item revision, BOM structure, substitute logic, and effectivity.
+  - Parent and child revision relationships are updated so the released structure remains consistent.
+
+#### Submodule: Controlled Documents
+- Functional scope:
+  - Document upload, revision, approval, and release.
+  - Linkage of controlled documents to item, BOM, PO, and build order.
+  - Retrieval of the effective released document at point of use.
+- Designed workflow and process:
+  - Controlled documents are created and revised through a formal review path.
+  - Once released, they become the approved documents used by procurement, production, and quality.
+  - Obsolete versions remain available for historical review but are no longer active operational documents.
+
+### Module: Quality and Compliance
+
+#### Submodule: Inspection
+- Functional scope:
+  - Incoming, in-process, and final inspection records.
+  - Result capture for pass, fail, or conditional disposition.
+  - Linkage to GRN, lot, work/build order, and source template.
+- Designed workflow and process:
+  - Inspection is triggered by receipt, production stage, or final release requirement.
+  - The result determines whether material is released, held, reworked, rejected, or routed into further quality handling.
+  - Inspection results also become part of the permanent traceability story.
+
+#### Submodule: Internal QC
+- Functional scope:
+  - Internal QC document by build order and production batch.
+  - AQL calculation.
+  - Market- and category-driven QC template selection.
+  - Printable QC packet generation.
+- Designed workflow and process:
+  - Internal QC is designed as a controlled shop-floor process, not merely an inspection list.
+  - The build order, market, and item category fields determine the correct QC template and sample rule.
+  - The system then generates a printable QC packet for execution and record retention.
+
+#### Submodule: Internal QC Template Editor
+- Functional scope:
+  - WYSIWYG authoring of Internal QC templates.
+  - Fixed-layout printable form design.
+  - Reusable blocks and template rules.
+- Designed workflow and process:
+  - The client wants the QC form structure maintained inside the ERP rather than managed outside the system.
+  - Quality or process owners define the template once.
+  - The system then applies the template repeatedly according to product, market, and category logic.
+
+#### Submodule: Complaints
+- Functional scope:
+  - Complaint intake and tracking.
+  - Product, customer, market, and severity capture.
+  - Link to CAPA initiation.
+- Designed workflow and process:
+  - A complaint enters as the first quality signal from the field or customer side.
+  - The complaint identifies the affected product, market, and severity.
+  - Where warranted, it opens a CAPA process and can eventually drive engineering change.
+
+#### Submodule: CAPA and Change Chain
+- Functional scope:
+  - CAPA record management.
+  - Linkage from complaint to CAPA to ECR to BOM change to released version.
+  - Open and approved CAPA visibility.
+- Designed workflow and process:
+  - The CAPA flow is designed as the business backbone for corrective and preventive action.
+  - The system should make it clear how a complaint becomes a corrective action, then an engineering change, then a released BOM or part revision.
+  - This demonstrates closed-loop quality management rather than isolated quality records.
+
+#### Submodule: Traceability
+- Functional scope:
+  - Search from document number, item number, product number, lot, or similar operational key.
+  - Forward and backward trace.
+  - Workflow-oriented lineage view across business documents.
+- Designed workflow and process:
+  - Users may start from any meaningful point, such as a customer order, finished product, component lot, receipt, return, or quality event.
+  - The system then shows how that record connects to upstream and downstream documents.
+  - The intended presentation is a business workflow view so the trace is understandable to operations, quality, engineering, and client stakeholders.
+
+### Module: Finance
 
 #### Submodule: Costing
-- Feature:
-  - Cost-management capability inside ERP.
-  - Visibility into procurement, manufacturing, and subcontract cost drivers.
-  - Cost roll-up and cost reporting support.
-- Remarks on design:
-  - The requirements baseline explicitly proposes bringing cost management into ERP rather than leaving it entirely external.
+- Functional scope:
+  - Cost visibility within ERP.
+  - Support for procurement, production, and subcontract cost understanding.
+- Designed workflow and process:
+  - Finance and management need cost information tied back to operational records rather than separated in an unrelated system.
+  - Costing therefore follows actual procurement, production, and subcontract activity inside the same business flow.
 
-#### Submodule: Payment Requests
-- Feature:
-  - Group one or more open vendor balances into a payment request.
-  - Generate requests from PO payment schedules.
-  - Track draft, in-approval, approved, and other payment-request states.
-  - Maintain payment-request lines linked to PO, schedule, trigger, requested amount, paid amount, and outstanding amount.
-- Remarks on design:
-  - The current codebase already treats payment request as a first-class finance document.
-  - Payment-request approvals are part of cross-module workflow and inbox behavior.
+#### Submodule: Payment Request
+- Functional scope:
+  - Payment request creation from one or multiple POs or payment milestones.
+  - Payment request list, detail, and approval.
+  - Outstanding balance visibility.
+- Designed workflow and process:
+  - When a payable amount is due according to PO terms, finance or procurement prepares a payment request.
+  - The request may group multiple related payable lines for the same supplier.
+  - The request then moves through approval before payment execution.
 
 #### Submodule: AP Reconciliation
-- Feature:
-  - Reconcile invoice, PO, GRN, and goods-return data.
-  - Track tax invoice status as uploaded, pending, or blocked by return.
-  - Maintain invoice attachments and finance follow-up status.
-  - Expose return-driven finance hold conditions.
-- Remarks on design:
-  - This module is intentionally modeled as a finance-control page, not as a separate standalone tax-invoice document subsystem.
-  - Goods return directly influences AP eligibility and invoice release status.
+- Functional scope:
+  - Matching of invoice, PO, GRN, and goods return.
+  - Tax invoice upload and status tracking.
+  - Finance hold visibility where return affects settlement.
+- Designed workflow and process:
+  - AP reconciliation begins from actual commercial and physical events, not from standalone invoice entry only.
+  - The system checks whether invoice, receipt, and return status are aligned.
+  - If a goods return affects settlement, the invoice or payment flow is visibly blocked until resolved.
 
 #### Submodule: Integration Monitor
-- Feature:
-  - Status overview of Feishu, ERP sync, WMS, finance-system, and other integrations.
-  - Display of uptime, last sync, sync direction, record count, duration, and message.
-  - Review of recent sync logs and error conditions.
-- Remarks on design:
-  - Integration monitoring is an operational support capability for exception handling and diagnostics.
-  - Backend design should support retry, dead-letter, and support-dashboards rather than silent failure.
+- Functional scope:
+  - Monitoring of Feishu, WMS, finance, ERP sync, and related interfaces.
+  - Recent sync-log review.
+  - Error and degraded-status visibility.
+- Designed workflow and process:
+  - Operational support users review integration health from one screen.
+  - The system shows whether data was sent, received, delayed, or failed.
+  - This helps users understand whether a business issue is process-related or interface-related.
 
-#### Submodule: Feishu and External Finance Integration
-- Feature:
-  - Push approval and alert notifications to Feishu.
-  - Push cost, AP, and stock postings to external finance or internal costing engine.
-  - Publish asynchronous domain events for workflow, inventory, engineering, quality, and traceability updates.
-- Remarks on design:
-  - Integration is both synchronous API-driven and asynchronous event-driven.
-  - Core event topics are already defined in the documentation baseline and should be preserved in implementation.
-
-### Module: Reports and Analytics
+### Module: Reports
 
 #### Submodule: Operational Reports
-- Feature:
+- Functional scope:
   - PR aging.
   - PO aging.
-  - Approval cycle time by step and role.
-  - Supplier quotation comparison and winner rationale.
-  - Stock by item/revision/lot/location and shortage-risk list.
-  - Subcontract WIP and fee reconciliation.
-  - Production progress by work/build order, module, or operation.
-  - Procurement summary, inventory aging, supplier performance, and delivery-performance views.
-- Remarks on design:
-  - Reports must support export and should preserve drill-back to source transactions where practical.
-  - Charts should never be the only evidence form; accessible tabular alternatives are part of the UI standard.
+  - Approval turnaround.
+  - Quotation comparison and award rationale.
+  - Stock and shortage risk.
+  - Subcontract WIP and reconciliation.
+  - Production progress and supplier performance.
+- Designed workflow and process:
+  - These reports help management monitor whether the business process is flowing correctly and where delays or exceptions are accumulating.
+  - They are intended for daily and periodic operational review, not just data export.
 
 #### Submodule: Compliance and Traceability Reports
-- Feature:
+- Functional scope:
   - Full genealogy report.
   - Reverse impact report.
-  - Revision-history report.
-  - Audit trail report by document.
+  - Revision history report.
+  - Audit-trail report.
   - E-signature evidence report.
-  - CAPA summary and nonconformance trending.
-  - Document-control and UDI-compliance reporting.
-- Remarks on design:
-  - These reports are regulatory evidence outputs and should be treated as controlled deliverables.
-  - Some compliance report cards already appear in the current UI, but the contract scope should follow the documented evidence list, not only visual cards.
+  - CAPA and quality trend reporting.
+- Designed workflow and process:
+  - These reports show not only business performance but also compliance evidence.
+  - The system should be able to demonstrate what happened, who approved it, what version was active, and which products or customers were affected.
 
-### Module: Administration and System Configuration
+### Module: Administration
 
 #### Submodule: Users and Roles
-- Feature:
-  - User administration.
-  - Role assignment and access provisioning.
-  - Locale-aware user preferences.
-- Remarks on design:
-  - User and role administration is a prerequisite for controlled approvals, audit traceability, and site/department permissions.
+- Functional scope:
+  - User setup and maintenance.
+  - Role assignment.
+  - Access governance.
+- Designed workflow and process:
+  - Administration establishes the permission framework before business users execute controlled activities.
+  - This module supports the full approval, audit, and document-control structure.
 
-#### Submodule: Approval Policies
-- Feature:
-  - Document-type approval policy definition.
-  - Configurable approval levels and approver roles.
-  - Support for withdrawal request, withdrawal confirmation, goods return, CAPA/ECR chain, and other document families.
-- Remarks on design:
-  - The policy engine must preserve two-level approvals where mandatory, while remaining extensible for future routing logic.
-  - The current demo already reflects newly added policy families from the client change plan.
+#### Submodule: Approval Policy
+- Functional scope:
+  - Approval-policy setup by document type.
+  - Approval levels and approver-role definition.
+  - Coverage for withdrawal request, withdrawal confirmation, goods return, CAPA/ECR, and other controlled documents.
+- Designed workflow and process:
+  - Administration defines the approval rule once.
+  - Business documents then automatically inherit the correct routing behavior when submitted.
+  - This avoids manual approval assignment on each transaction.
 
 #### Submodule: Custom Fields
-- Feature:
-  - Dynamic custom fields and option sets.
-  - Searchable and filterable custom data points.
-  - Availability of custom fields to downstream forms, lists, and workflows.
-- Remarks on design:
-  - This is required to preserve legacy-system flexibility without losing link-search and grouping capability.
-  - Custom fields must still obey permission, validation, and audit rules.
+- Functional scope:
+  - Configurable custom fields and option sets.
+  - Searchable and filterable custom data.
+- Designed workflow and process:
+  - Where the business needs additional fields beyond the standard structure, the system supports controlled extension.
+  - These fields should still participate in search, filter, display, and reporting rather than existing as hidden or unusable metadata.
 
 #### Submodule: System Configuration
-- Feature:
-  - Company, language, and timezone defaults.
-  - Integration toggles and notification settings.
-  - Dual sequence rule setup.
-  - Safety-stock alert configuration including levels, cooldown, routing, and email templates.
-- Remarks on design:
-  - System configuration changes should be controlled and auditable because they affect regulated workflows and notification behavior.
-  - The current UI already includes system-wide sequence and alert configuration surfaces.
+- Functional scope:
+  - Company settings.
+  - Language and timezone defaults.
+  - Integration toggles.
+  - Notification rules.
+  - Sequence setup.
+  - Safety-stock alert setup.
+- Designed workflow and process:
+  - Administration configures system-wide behavior centrally.
+  - These settings then influence how documents are numbered, how alerts are sent, and how integrations behave across modules.
 
-## 4. Scope Boundary Notes
+## 4. Technical and Other Points
 
-- Standalone `Project Management` is currently removed from active UI scope and should be excluded unless reintroduced through approved change control.
-- Where the current demo UI is lighter than the baseline documentation, the SOW scope should follow the approved requirements/workflow/design documents rather than only the visual completeness of the demo.
-- Any removal of preserved legacy fields, deviation from mandatory workflows, or change to compliance behavior requires formal change control with impact analysis, approval, and updated traceability.
+- Primary technical direction already reflected in project documents:
+  - React-based front end for operational UI
+  - PostgreSQL-centered transactional data model
+  - REST/API and event-driven integration approach
+  - object/document storage for controlled attachments
+- Core compliance and control expectations:
+  - role-based access control
+  - approval and e-signature support
+  - immutable audit history
+  - long-term traceability retention
+- Core integration direction:
+  - Feishu notifications and workflow messages
+  - finance-system integration
+  - WMS or related warehouse/inventory synchronization where applicable
+- Scope interpretation note:
+  - This SOW version is intentionally functional and process-oriented.
+  - Technical architecture, schema detail, API detail, test strategy, infrastructure design, migration detail, and deployment plan should be kept in supporting technical appendices or implementation documents.
+
+## 5. Scope Boundary Notes
+
+- The current active scope does not include a standalone `Project Management` module as a first-class page in the implemented application direction.
+- If the client requires standalone project management, training management, or additional regulated modules beyond those already documented, they should be listed as separate scope additions or change requests.
+- Detailed field dictionary, legacy migration mapping, report layouts, and full validation scripts are outside the purpose of this functional SOW and should be maintained as supporting project documents.
